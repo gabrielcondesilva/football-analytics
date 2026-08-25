@@ -68,6 +68,17 @@ def test_parse_squad_gives_an_empty_positions_tuple_when_position_ids_desc_is_bl
     assert raya.positions == ()
 
 
+def test_parse_squad_gives_an_empty_positions_tuple_when_position_ids_desc_is_null():
+    payload = load_fixture("team_squad.json")
+    team = Team(fotmob_id=9825, name="Arsenal")
+    payload["squad"]["squad"][1]["members"][0]["positionIdsDesc"] = None
+
+    players = parse_squad(payload, team)
+
+    raya = next(p for p in players if p.fotmob_id == 562727)
+    assert raya.positions == ()
+
+
 def test_find_entry_id_locates_the_season_and_tournament_requested():
     payload = load_fixture("player_data.json")
 

@@ -26,9 +26,10 @@ def parse_squad(team_payload: dict, team: Team) -> list[Player]:
         if position_group is None:
             continue
         for member in group["members"]:
+            position_ids_desc = member["positionIdsDesc"] or ""
             positions = tuple(
                 Position(code=code, group=position_group)
-                for code in member["positionIdsDesc"].split(",")
+                for code in position_ids_desc.split(",")
                 if code
             )
             players.append(

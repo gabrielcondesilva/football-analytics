@@ -52,9 +52,13 @@ def run() -> None:
 
     saved_count = 0
     for team in teams:
-        team_id = repo.save_team(team)
-        squad_payload = client.get_team(team.fotmob_id, SEASON_NAME)
-        roster = parse_squad(squad_payload, team)
+        try:
+            team_id = repo.save_team(team)
+            squad_payload = client.get_team(team.fotmob_id, SEASON_NAME)
+            roster = parse_squad(squad_payload, team)
+        except Exception as exc:  # noqa: BLE001 - one team's failure must not abort the run
+            print(f"  skipping {team.name}: {exc!r}")
+            continue
         print(f"  {team.name}: {len(roster)} players")
 
         for roster_player in roster:
