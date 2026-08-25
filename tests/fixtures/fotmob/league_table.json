@@ -1,0 +1,72 @@
+{
+  "details": {
+    "id": 47,
+    "name": "Premier League",
+    "selectedSeason": "2025/2026"
+  },
+  "table": [
+    {
+      "data": {
+        "leagueId": 47,
+        "leagueName": "Premier League",
+        "selectedSeason": "2025/2026",
+        "isCurrentSeason": false,
+        "table": {
+          "all": [
+            {
+              "name": "Arsenal",
+              "shortName": "Arsenal",
+              "id": 9825,
+              "pageUrl": "/teams/9825/overview/arsenal",
+              "deduction": null,
+              "ongoing": null,
+              "played": 38,
+              "wins": 26,
+              "draws": 7,
+              "losses": 5,
+              "scoresStr": "71-27",
+              "goalConDiff": 44,
+              "pts": 85,
+              "idx": 1,
+              "qualColor": "#2AD572"
+            },
+            {
+              "name": "Manchester City",
+              "shortName": "Man City",
+              "id": 8456,
+              "pageUrl": "/teams/8456/overview/manchester-city",
+              "deduction": null,
+              "ongoing": null,
+              "played": 38,
+              "wins": 23,
+              "draws": 9,
+              "losses": 6,
+              "scoresStr": "77-35",
+              "goalConDiff": 42,
+              "pts": 78,
+              "idx": 2,
+              "qualColor": "#2AD572"
+            },
+            {
+              "name": "Manchester United",
+              "shortName": "Man United",
+              "id": 10260,
+              "pageUrl": "/teams/10260/overview/manchester-united",
+              "deduction": null,
+              "ongoing": null,
+              "played": 38,
+              "wins": 20,
+              "draws": 11,
+              "losses": 7,
+              "scoresStr": "69-50",
+              "goalConDiff": 19,
+              "pts": 71,
+              "idx": 3,
+              "qualColor": "#2AD572"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

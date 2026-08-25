@@ -1,0 +1,365 @@
+{
+  "details": {
+    "id": 9825,
+    "name": "Arsenal"
+  },
+  "squad": {
+    "squad": [
+      {
+        "title": "coach",
+        "members": [
+          {
+            "id": 24011,
+            "height": 176,
+            "age": 44,
+            "dateOfBirth": "1982-03-26",
+            "name": "Mikel Arteta",
+            "ccode": "ESP",
+            "cname": "Spain",
+            "role": {
+              "key": "coach",
+              "fallback": "Coach"
+            },
+            "excludeFromRanking": true
+          }
+        ]
+      },
+      {
+        "title": "keepers",
+        "members": [
+          {
+            "id": 562727,
+            "name": "David Raya",
+            "shirtNumber": 1,
+            "ccode": "ESP",
+            "cname": "Spain",
+            "role": {
+              "key": "keeper_long",
+              "fallback": "Keeper"
+            },
+            "positionId": 0,
+            "injury": null,
+            "rating": 7.32,
+            "goals": 0,
+            "penalties": 0,
+            "assists": 0,
+            "rcards": 0,
+            "ycards": 0,
+            "excludeFromRanking": false,
+            "positionIds": "11",
+            "positionIdsDesc": "GK",
+            "height": 183,
+            "age": 30,
+            "dateOfBirth": "1995-09-15",
+            "transferValue": 24712371
+          },
+          {
+            "id": 317564,
+            "name": "Kepa Arrizabalaga",
+            "shirtNumber": 13,
+            "ccode": "ESP",
+            "cname": "Spain",
+            "role": {
+              "key": "keeper_long",
+              "fallback": "Keeper"
+            },
+            "positionId": 0,
+            "injury": null,
+            "rating": null,
+            "goals": 0,
+            "penalties": 0,
+            "assists": 0,
+            "rcards": 0,
+            "ycards": 0,
+            "excludeFromRanking": true,
+            "positionIds": "11",
+            "positionIdsDesc": "GK",
+            "height": 189,
+            "age": 31,
+            "dateOfBirth": "1994-10-03",
+            "transferValue": 4609595
+          },
+          {
+            "id": 952029,
+            "name": "Illan Meslier",
+            "shirtNumber": 30,
+            "ccode": "FRA",
+            "cname": "France",
+            "role": {
+              "key": "keeper_long",
+              "fallback": "Keeper"
+            },
+            "positionId": 0,
+            "injury": null,
+            "rating": null,
+            "goals": 0,
+            "penalties": 0,
+            "assists": 0,
+            "rcards": 0,
+            "ycards": 0,
+            "excludeFromRanking": true,
+            "positionIds": "11",
+            "positionIdsDesc": "GK",
+            "height": 193,
+            "age": 26,
+            "dateOfBirth": "2000-03-02",
+            "transferValue": 8354840
+          }
+        ]
+      },
+      {
+        "title": "defenders",
+        "members": [
+          {
+            "id": 955406,
+            "name": "William Saliba",
+            "shirtNumber": 2,
+            "ccode": "FRA",
+            "cname": "France",
+            "role": {
+              "key": "defender_long",
+              "fallback": "Defender"
+            },
+            "positionId": 1,
+            "injured": true,
+            "injury": {
+              "id": "45",
+              "expectedReturn": "Late October 2026"
+            },
+            "rating": null,
+            "goals": 0,
+            "penalties": 0,
+            "assists": 0,
+            "rcards": 0,
+            "ycards": 0,
+            "excludeFromRanking": true,
+            "positionIds": "34",
+            "positionIdsDesc": "CB",
+            "height": 193,
+            "age": 25,
+            "dateOfBirth": "2001-03-24",
+            "transferValue": 91180122
+          },
+          {
+            "id": 1298907,
+            "name": "Cristhian Mosquera",
+            "shirtNumber": 3,
+            "ccode": "ESP",
+            "cname": "Spain",
+            "role": {
+              "key": "defender_long",
+              "fallback": "Defender"
+            },
+            "positionId": 1,
+            "injury": null,
+            "rating": 7.22,
+            "goals": 0,
+            "penalties": 0,
+            "assists": 0,
+            "rcards": 0,
+            "ycards": 0,
+            "excludeFromRanking": false,
+            "positionIds": "34,32",
+            "positionIdsDesc": "CB,RB",
+            "height": 191,
+            "age": 22,
+            "dateOfBirth": "2004-06-27",
+            "transferValue": 41912568
+          },
+          {
+            "id": 776151,
+            "name": "Ben White",
+            "shirtNumber": 4,
+            "ccode": "ENG",
+            "cname": "England",
+            "role": {
+              "key": "defender_long",
+              "fallback": "Defender"
+            },
+            "positionId": 1,
+            "injury": null,
+            "rating": 8.36,
+            "goals": 0,
+            "penalties": 0,
+            "assists": 1,
+            "rcards": 0,
+            "ycards": 0,
+            "excludeFromRanking": false,
+            "positionIds": "32",
+            "positionIdsDesc": "RB",
+            "height": 186,
+            "age": 28,
+            "dateOfBirth": "1997-10-08",
+            "transferValue": 27908460
+          }
+        ]
+      },
+      {
+        "title": "midfielders",
+        "members": [
+          {
+            "id": 534670,
+            "name": "Martin Ødegaard",
+            "shirtNumber": 8,
+            "ccode": "NOR",
+            "cname": "Norway",
+            "role": {
+              "key": "midfielder_long",
+              "fallback": "Midfielder"
+            },
+            "positionId": 2,
+            "injury": null,
+            "rating": 8.58,
+            "goals": 1,
+            "penalties": 0,
+            "assists": 0,
+            "rcards": 0,
+            "ycards": 0,
+            "excludeFromRanking": false,
+            "positionIds": "73,85",
+            "positionIdsDesc": "CM,CAM",
+            "height": 176,
+            "age": 27,
+            "dateOfBirth": "1998-12-17",
+            "transferValue": 52937301
+          },
+          {
+            "id": 818975,
+            "name": "Eberechi Eze",
+            "shirtNumber": 10,
+            "ccode": "ENG",
+            "cname": "England",
+            "role": {
+              "key": "midfielder_long",
+              "fallback": "Midfielder"
+            },
+            "positionId": 2,
+            "injury": null,
+            "rating": 6.34,
+            "goals": 0,
+            "penalties": 0,
+            "assists": 0,
+            "rcards": 0,
+            "ycards": 0,
+            "excludeFromRanking": false,
+            "positionIds": "85,77,107,66",
+            "positionIdsDesc": "CAM,CM,LW,CDM",
+            "height": 178,
+            "age": 28,
+            "dateOfBirth": "1998-06-29",
+            "transferValue": 49538098
+          },
+          {
+            "id": 1025462,
+            "name": "Fábio Vieira",
+            "shirtNumber": 21,
+            "ccode": "POR",
+            "cname": "Portugal",
+            "role": {
+              "key": "midfielder_long",
+              "fallback": "Midfielder"
+            },
+            "positionId": 2,
+            "injury": null,
+            "rating": null,
+            "goals": 0,
+            "penalties": 0,
+            "assists": 0,
+            "rcards": 0,
+            "ycards": 0,
+            "excludeFromRanking": true,
+            "positionIds": "74,103,85,64",
+            "positionIdsDesc": "CM,RW,CAM,CDM",
+            "height": 170,
+            "age": 26,
+            "dateOfBirth": "2000-05-30",
+            "transferValue": 13299083
+          }
+        ]
+      },
+      {
+        "title": "attackers",
+        "members": [
+          {
+            "id": 961995,
+            "name": "Bukayo Saka",
+            "shirtNumber": 7,
+            "ccode": "ENG",
+            "cname": "England",
+            "role": {
+              "key": "attacker_long",
+              "fallback": "Attacker"
+            },
+            "positionId": 3,
+            "injury": null,
+            "rating": 8.41,
+            "goals": 1,
+            "penalties": 0,
+            "assists": 0,
+            "rcards": 0,
+            "ycards": 0,
+            "excludeFromRanking": false,
+            "positionIds": "83,85",
+            "positionIdsDesc": "RW,CAM",
+            "height": 178,
+            "age": 24,
+            "dateOfBirth": "2001-09-05",
+            "transferValue": 94255327
+          },
+          {
+            "id": 576165,
+            "name": "Gabriel Jesus",
+            "shirtNumber": 9,
+            "ccode": "BRA",
+            "cname": "Brazil",
+            "role": {
+              "key": "attacker_long",
+              "fallback": "Attacker"
+            },
+            "positionId": 3,
+            "injury": null,
+            "rating": null,
+            "goals": 0,
+            "penalties": 0,
+            "assists": 0,
+            "rcards": 0,
+            "ycards": 0,
+            "excludeFromRanking": true,
+            "positionIds": "105",
+            "positionIdsDesc": "ST",
+            "height": 175,
+            "age": 29,
+            "dateOfBirth": "1997-04-03",
+            "transferValue": 17296982
+          },
+          {
+            "id": 1021586,
+            "name": "Gabriel Martinelli",
+            "shirtNumber": 11,
+            "ccode": "BRA",
+            "cname": "Brazil",
+            "role": {
+              "key": "attacker_long",
+              "fallback": "Attacker"
+            },
+            "positionId": 3,
+            "injury": null,
+            "rating": null,
+            "goals": 0,
+            "penalties": 0,
+            "assists": 0,
+            "rcards": 0,
+            "ycards": 0,
+            "excludeFromRanking": true,
+            "positionIds": "87",
+            "positionIdsDesc": "LW",
+            "height": 180,
+            "age": 25,
+            "dateOfBirth": "2001-06-18",
+            "transferValue": 40228827
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "id": 961995,
+  "name": "Bukayo Saka",
+  "primaryTeam": {
+    "teamId": 9825,
+    "teamName": "Arsenal",
+    "onLoan": false,
+    "teamColors": {
+      "color": "#bd0510",
+      "colorAlternate": "#bd0510",
+      "colorAway": "#101010",
+      "colorAwayAlternate": "#ffffff"
+    }
+  },
+  "statSeasons": [
+    {
+      "seasonName": "2026/2027",
+      "tournaments": [
+        {
+          "name": "Premier League",
+          "tournamentId": 47,
+          "entryId": "0-0",
+          "hasDeepStats": true
+        },
+        {
+          "name": "World Cup",
+          "tournamentId": 77,
+          "entryId": "0-1",
+          "hasDeepStats": true
+        }
+      ]
+    },
+    {
+      "seasonName": "2025/2026",
+      "tournaments": [
+        {
+          "name": "Premier League",
+          "tournamentId": 47,
+          "entryId": "1-0",
+          "hasDeepStats": true
+        },
+        {
+          "name": "Community Shield",
+          "tournamentId": 247,
+          "entryId": "1-1",
+          "hasDeepStats": true
+        },
+        {
+          "name": "FA Cup",
+          "tournamentId": 132,
+          "entryId": "1-2",
+          "hasDeepStats": true
+        },
+        {
+          "name": "EFL Cup",
+          "tournamentId": 133,
+          "entryId": "1-3",
+          "hasDeepStats": true
+        },
+        {
+          "name": "Champions League",
+          "tournamentId": 42,
+          "entryId": "1-4",
+          "hasDeepStats": true
+        },
+        {
+          "name": "World Cup UEFA qualification",
+          "tournamentId": 10195,
+          "entryId": "1-5",
+          "hasDeepStats": true
+        }
+      ]
+    },
+    {
+      "seasonName": "2024/2025",
+      "tournaments": [
+        {
+          "name": "Premier League",
+          "tournamentId": 47,
+          "entryId": "2-0",
+          "hasDeepStats": true
+        },
+        {
+          "name": "EFL Cup",
+          "tournamentId": 133,
+          "entryId": "2-1",
+          "hasDeepStats": true
+        },
+        {
+          "name": "Champions League",
+          "tournamentId": 42,
+          "entryId": "2-2",
+          "hasDeepStats": true
+        },
+        {
+          "name": "EURO",
+          "tournamentId": 50,
+          "entryId": "2-3",
+          "hasDeepStats": true
+        },
+        {
+          "name": "UEFA Nations League B",
+          "tournamentId": 9807,
+          "entryId": "2-4",
+          "hasDeepStats": true
+        }
+      ]
+    }
+  ]
+}

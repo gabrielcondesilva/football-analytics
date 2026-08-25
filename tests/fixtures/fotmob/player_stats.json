@@ -1,0 +1,201 @@
+{
+  "topStatCard": {
+    "display": "stats-group",
+    "id": "top-stat-card",
+    "items": [
+      {
+        "localizedTitleId": "goals",
+        "per90": 0.28314606741573034,
+        "percentileRank": 81.67938931297711,
+        "percentileRankPer90": 79.38931297709924,
+        "statFormat": "number",
+        "statValue": "7",
+        "title": "Goals"
+      },
+      {
+        "localizedTitleId": "assists",
+        "per90": 0.20224719101123598,
+        "percentileRank": 85.49618320610686,
+        "percentileRankPer90": 77.09923664122137,
+        "statFormat": "number",
+        "statValue": "5",
+        "title": "Assists"
+      },
+      {
+        "localizedTitleId": "rating",
+        "per90": 7.516666666666667,
+        "percentileRank": 98.47328244274809,
+        "percentileRankPer90": 98.47328244274809,
+        "statFormat": "fraction",
+        "statValue": "7.52",
+        "title": "Rating"
+      },
+      {
+        "localizedTitleId": "matches_uppercase",
+        "per90": 31,
+        "percentileRank": 64.12213740458014,
+        "percentileRankPer90": 64.12213740458014,
+        "statFormat": "number",
+        "statValue": "31",
+        "title": "Matches"
+      },
+      {
+        "localizedTitleId": "player_started_matches",
+        "per90": 25,
+        "percentileRank": 76.33587786259542,
+        "percentileRankPer90": 50.38167938931297,
+        "statFormat": "number",
+        "statValue": "25",
+        "title": "Started"
+      },
+      {
+        "localizedTitleId": "minutes_played",
+        "per90": 90,
+        "percentileRank": 78.62595419847328,
+        "percentileRankPer90": 100,
+        "statFormat": "number",
+        "statValue": "2225",
+        "title": "Minutes"
+      }
+    ],
+    "type": "stat-values"
+  },
+  "statsSection": {
+    "id": "stats-section",
+    "items": [
+      {
+        "display": "stats-group",
+        "items": [
+          {
+            "localizedTitleId": "goals",
+            "per90": 0.28314606741573034,
+            "percentileRank": 81.67938931297711,
+            "percentileRankPer90": 79.38931297709924,
+            "statFormat": "number",
+            "statValue": "7",
+            "title": "Goals"
+          },
+          {
+            "localizedTitleId": "expected_goals",
+            "per90": 0.30548224074117253,
+            "percentileRank": 88.54961832061069,
+            "percentileRankPer90": 82.44274809160305,
+            "statFormat": "fraction",
+            "statValue": "7.55",
+            "title": "xG"
+          },
+          {
+            "localizedTitleId": "expected_goals_on_target",
+            "per90": 0.24778920505823712,
+            "percentileRank": 81.67938931297711,
+            "percentileRankPer90": 72.51908396946564,
+            "statFormat": "fraction",
+            "statValue": "6.13",
+            "title": "xGOT"
+          },
+          {
+            "localizedTitleId": "goals_subtitle",
+            "per90": 0.040449438202247195,
+            "percentileRank": 86.25954198473282,
+            "percentileRankPer90": 88.54961832061069,
+            "statFormat": "number",
+            "statValue": "1",
+            "title": "Penalty goals"
+          },
+          {
+            "localizedTitleId": "non_penalty_xg",
+            "per90": 0.2735919159449888,
+            "percentileRank": 87.78625954198473,
+            "percentileRankPer90": 83.20610687022901,
+            "statFormat": "fraction",
+            "statValue": "6.76",
+            "title": "xG excl. penalty"
+          },
+          {
+            "localizedTitleId": "shots",
+            "per90": 2.8719101123595503,
+            "percentileRank": 90.83969465648855,
+            "percentileRankPer90": 90.83969465648855,
+            "statFormat": "number",
+            "statValue": "71",
+            "title": "Shots"
+          },
+          {
+            "localizedTitleId": "ShotsOnTarget",
+            "per90": 1.0921348314606742,
+            "percentileRank": 93.89312977099237,
+            "percentileRankPer90": 90.83969465648855,
+            "statFormat": "number",
+            "statValue": "27",
+            "title": "Shots on target"
+          },
+          {
+            "localizedTitleId": "headed_shots",
+            "per90": 0.20224719101123598,
+            "percentileRank": 87.02290076335878,
+            "percentileRankPer90": 69.46564885496184,
+            "statFormat": "number",
+            "statValue": "5",
+            "title": "Headed shots"
+          }
+        ],
+        "localizedTitleId": "shooting",
+        "title": "Shooting",
+        "type": "stat-values"
+      },
+      {
+        "display": "stats-group",
+        "items": [
+          {
+            "localizedTitleId": "physical_metrics_topspeed",
+            "per90": 33,
+            "percentileRank": 41.98473282442748,
+            "percentileRankPer90": 41.98473282442748,
+            "statFormat": "kph",
+            "statValue": "33.0",
+            "title": "Top Speed"
+          },
+          {
+            "localizedTitleId": "physical_metrics_distance_covered",
+            "per90": 3530.3403792134827,
+            "percentileRank": 47.32824427480916,
+            "percentileRankPer90": 8.396946564885496,
+            "statFormat": "meter",
+            "statValue": "87277.9",
+            "title": "Total Distance Covered"
+          },
+          {
+            "localizedTitleId": "physical_metrics_running",
+            "per90": 809.2243504213483,
+            "percentileRank": 48.091603053435115,
+            "percentileRankPer90": 15.267175572519085,
+            "statFormat": "meter",
+            "statValue": "20005.8",
+            "title": "Running"
+          },
+          {
+            "localizedTitleId": "physical_metrics_sprinting",
+            "per90": 98.38727396418538,
+            "percentileRank": 56.48854961832062,
+            "percentileRankPer90": 29.00763358778626,
+            "statFormat": "meter",
+            "statValue": "2432.4",
+            "title": "Sprinting"
+          },
+          {
+            "localizedTitleId": "physical_metrics_number_of_sprints",
+            "per90": 4.651685393258426,
+            "percentileRank": 56.48854961832062,
+            "percentileRankPer90": 24.427480916030532,
+            "statFormat": "number",
+            "statValue": "115",
+            "title": "Number of Sprints"
+          }
+        ],
+        "localizedTitleId": "physical_metrics",
+        "title": "Physical",
+        "type": "stat-values"
+      }
+    ]
+  }
+}

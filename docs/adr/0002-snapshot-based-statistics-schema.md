@@ -1,0 +1,3 @@
+# Store Statistics as timestamped Snapshots from day one
+
+O MVP faz apenas um scraping único da Premier League 2025/26 (temporada já encerrada), então poderíamos simplesmente sobrescrever os valores de Statistics de cada Player. Mas o plano é, no futuro, rodar re-scraping periódico incremental para temporadas em andamento. Decidimos desde já modelar cada carga de Statistics como um Snapshot datado (`scraped_at`), em vez de sobrescrever em cima, mesmo existindo apenas um Snapshot hoje. O custo de adicionar esse campo agora é mínimo e evita uma migração de schema quebrando o dado histórico quando o re-scraping incremental entrar.
