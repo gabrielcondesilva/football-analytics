@@ -45,10 +45,10 @@ def parse_squad(team_payload: dict, team: Team) -> list[Player]:
 
 
 def find_entry_id(player_data_payload: dict, *, season_name: str, tournament_id: int) -> str | None:
-    for season in player_data_payload["statSeasons"]:
+    for season in player_data_payload["statSeasons"] or []:
         if season["seasonName"] != season_name:
             continue
-        for tournament in season["tournaments"]:
+        for tournament in season["tournaments"] or []:
             if tournament["tournamentId"] == tournament_id:
                 return tournament["entryId"]
     return None

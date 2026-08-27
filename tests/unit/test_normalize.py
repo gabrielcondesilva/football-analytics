@@ -95,6 +95,24 @@ def test_find_entry_id_returns_none_when_the_season_is_not_present():
     assert entry_id is None
 
 
+def test_find_entry_id_returns_none_when_stat_seasons_is_null():
+    payload = load_fixture("player_data.json")
+    payload["statSeasons"] = None
+
+    entry_id = find_entry_id(payload, season_name="2025/2026", tournament_id=47)
+
+    assert entry_id is None
+
+
+def test_find_entry_id_returns_none_when_tournaments_is_null_for_the_matched_season():
+    payload = load_fixture("player_data.json")
+    payload["statSeasons"][1]["tournaments"] = None
+
+    entry_id = find_entry_id(payload, season_name="2025/2026", tournament_id=47)
+
+    assert entry_id is None
+
+
 def test_parse_top_stats_extracts_the_raw_value_of_each_top_stat():
     payload = load_fixture("player_stats.json")
 
