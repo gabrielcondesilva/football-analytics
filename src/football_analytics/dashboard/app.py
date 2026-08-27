@@ -32,6 +32,9 @@ from football_analytics.analysis.metrics import (
 from football_analytics.domain.models import Player
 from football_analytics.persistence.player_queries import list_players
 from football_analytics.reports.player_report import build_player_report_pdf
+from football_analytics.reports.scout_comparison_report import (
+    build_scout_comparison_report_pdf,
+)
 
 METRIC_KIND_BY_LABEL: dict[str, MetricKind] = {
     "Raw": "raw",
@@ -232,10 +235,20 @@ def main() -> None:
         if not results:
             st.info("No comparable Players found under the current filters.")
         else:
+            top_results = results[:LEADERBOARD_SIZE]
             st.dataframe(
-                scout_comparison_dataframe(results[:LEADERBOARD_SIZE]),
+                scout_comparison_dataframe(top_results),
                 width="stretch",
                 hide_index=True,
+            )
+            scout_pdf_bytes = build_scout_comparison_report_pdf(
+                reference, top_results, specs, candidates
+            )
+            st.download_button(
+                "Download Scout Comparison Report (PDF)",
+                data=scout_pdf_bytes,
+                file_name=f"{reference.name.replace(' ', '_')}_scout_comparison.pdf",
+                mime="application/pdf",
             )
 
 

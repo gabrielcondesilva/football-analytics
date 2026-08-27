@@ -11,21 +11,18 @@ from __future__ import annotations
 
 import io
 
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer
+from reportlab.platypus import Image, Paragraph, Spacer
 
 from football_analytics.analysis.metrics import Insight
 from football_analytics.domain.models import Player
+from football_analytics.reports.pdf import get_styles, render_pdf
 
 
 def build_player_report_pdf(
     player: Player, insights: list[Insight], chart_png: bytes | None
 ) -> bytes:
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
-    styles = getSampleStyleSheet()
+    styles = get_styles()
 
     positions = ", ".join(pos.code for pos in player.positions) or "No Position data"
     story = [
@@ -51,5 +48,4 @@ def build_player_report_pdf(
     else:
         story.append(Paragraph("No notable Insights for this Player yet.", styles["Normal"]))
 
-    doc.build(story)
-    return buffer.getvalue()
+    return render_pdf(story)
