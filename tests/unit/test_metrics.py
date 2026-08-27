@@ -85,7 +85,7 @@ def test_per_90_returns_none_when_minutes_played_is_zero():
 
 def test_per_90_returns_the_raw_value_for_a_percentage_statistic_without_dividing():
     save_percentage = Statistic(
-        key="save_percentage", label="Save percentage", value=64.8, format="percentage"
+        key="save_percentage", label="Save percentage", value=64.8, format="percent"
     )
     minutes = Statistic(key="minutes_played", label="Minutes", value=900.0, format="number")
     player = Player(
@@ -101,7 +101,7 @@ def test_per_90_returns_the_raw_value_for_a_percentage_statistic_without_dividin
 
 def test_per_90_returns_the_raw_percentage_even_without_minutes_played():
     save_percentage = Statistic(
-        key="save_percentage", label="Save percentage", value=64.8, format="percentage"
+        key="save_percentage", label="Save percentage", value=64.8, format="percent"
     )
     player = Player(
         fotmob_id=1,
@@ -333,7 +333,7 @@ def test_top_metric_leaderboard_computes_percentile_against_the_same_population(
 
 
 def test_top_metric_leaderboard_returns_the_raw_value_for_a_percentage_statistic():
-    stat = Statistic(key="save_percentage", label="Save %", value=64.8, format="percentage")
+    stat = Statistic(key="save_percentage", label="Save %", value=64.8, format="percent")
     minutes = Statistic(key="minutes_played", label="Minutes", value=900.0, format="number")
     player = Player(
         fotmob_id=1,

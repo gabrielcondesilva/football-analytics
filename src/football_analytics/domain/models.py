@@ -37,8 +37,8 @@ class Statistic:
 
     format: str = "number"
     """FotMob's statFormat for this value (e.g. "number", "fraction",
-    "percentage"). Governs whether a Metric derived from this Statistic may
-    be scaled per-90 (percentage values may not)."""
+    "percent"). Governs whether a Metric derived from this Statistic may
+    be scaled per-90 (percent values may not)."""
 
 
 @dataclass(frozen=True)

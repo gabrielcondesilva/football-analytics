@@ -166,7 +166,7 @@ def test_parse_category_stats_extracts_stats_from_the_goalkeeper_specific_catego
 
     assert Statistic(key="saves", label="Saves", value=57.0, format="number") in statistics
     assert (
-        Statistic(key="save_percentage", label="Save percentage", value=64.8, format="percentage")
+        Statistic(key="save_percentage", label="Save percentage", value=64.8, format="percent")
         in statistics
     )
     assert (
@@ -186,7 +186,7 @@ def test_parse_stat_items_captures_the_format_of_each_statistic():
 
     save_percentage = next(s for s in statistics if s.key == "save_percentage")
     saves = next(s for s in statistics if s.key == "saves")
-    assert save_percentage.format == "percentage"
+    assert save_percentage.format == "percent"
     assert saves.format == "number"
 
 

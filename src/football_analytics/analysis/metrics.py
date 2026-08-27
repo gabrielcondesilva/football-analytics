@@ -53,14 +53,14 @@ def apply_minutes_floor(players: list[Player], minutes_floor: float) -> list[Pla
 def per_90(player: Player, key: str) -> float | None:
     """Scale a Statistic to a per-90-minutes rate.
 
-    Statistics already expressed as a percentage (`format == "percentage"`)
-    are returned as-is: scaling a rate by minutes played would produce a
-    meaningless number, not a fairer comparison.
+    Statistics already expressed as a percentage (`format == "percent"`, per
+    FotMob's statFormat) are returned as-is: scaling a rate by minutes
+    played would produce a meaningless number, not a fairer comparison.
     """
     stat = next((s for s in player.statistics if s.key == key), None)
     if stat is None:
         return None
-    if stat.format == "percentage":
+    if stat.format == "percent":
         return stat.value
     minutes = statistic_value(player, MINUTES_PLAYED_KEY)
     if not minutes:

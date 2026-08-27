@@ -53,7 +53,7 @@ create table if not exists statistics (
     key text not null, -- canonical stat key, e.g. "goals"
     label text not null, -- human-readable title, e.g. "Goals"
     value double precision not null,
-    format text not null default 'number', -- FotMob's statFormat, e.g. "number", "fraction", "percentage"
+    format text not null default 'number', -- FotMob's statFormat, e.g. "number", "fraction", "percent"
     unique (snapshot_id, player_id, key)
 );
 
