@@ -297,7 +297,7 @@ def test_generate_insights_skips_statistics_with_no_percentile():
     assert insights == []
 
 
-def test_top_metric_leaderboard_ranks_players_by_per_90_value_descending():
+def test_top_metric_leaderboard_ranks_players_by_per_90_value_descending_by_default():
     low = make_player(1, "Low", "Forward", goals=1.0, minutes_played=900.0)
     high = make_player(2, "High", "Forward", goals=9.0, minutes_played=900.0)
     mid = make_player(3, "Mid", "Forward", goals=4.5, minutes_played=900.0)
@@ -319,20 +319,16 @@ def test_top_metric_leaderboard_ranks_by_the_per_90_value_not_the_raw_value():
     assert [entry[0].name for entry in leaderboard] == ["FewerRaw", "MoreRaw"]
 
 
-def test_top_metric_leaderboard_computes_percentile_against_the_same_population():
-    players = [
-        make_player(i, f"Player{i}", "Forward", goals=float(i), minutes_played=900.0)
-        for i in range(1, 5)
-    ]
+def test_top_metric_leaderboard_ranks_by_the_raw_value_when_kind_is_raw():
+    more_raw = make_player(1, "MoreRaw", "Forward", goals=10.0, minutes_played=900.0)
+    fewer_raw = make_player(2, "FewerRaw", "Forward", goals=8.0, minutes_played=200.0)
 
-    leaderboard = top_metric_leaderboard(players, "goals")
+    leaderboard = top_metric_leaderboard([more_raw, fewer_raw], "goals", kind="raw")
 
-    percentiles_by_name = {entry[0].name: entry[2] for entry in leaderboard}
-    assert percentiles_by_name["Player4"] == 100.0
-    assert percentiles_by_name["Player1"] == 25.0
+    assert leaderboard == [(more_raw, 10.0), (fewer_raw, 8.0)]
 
 
-def test_top_metric_leaderboard_returns_the_raw_value_for_a_percentage_statistic():
+def test_top_metric_leaderboard_returns_the_raw_value_for_a_percent_statistic():
     stat = Statistic(key="save_percentage", label="Save %", value=64.8, format="percent")
     minutes = Statistic(key="minutes_played", label="Minutes", value=900.0, format="number")
     player = Player(
@@ -345,7 +341,7 @@ def test_top_metric_leaderboard_returns_the_raw_value_for_a_percentage_statistic
 
     leaderboard = top_metric_leaderboard([player], "save_percentage")
 
-    assert leaderboard == [(player, 64.8, 100.0)]
+    assert leaderboard == [(player, 64.8)]
 
 
 def test_top_metric_leaderboard_limits_results_to_the_requested_size():

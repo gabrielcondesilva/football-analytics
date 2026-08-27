@@ -98,29 +98,18 @@ def compute_metric(players: list[Player], player: Player, spec: MetricSpec) -> f
 
 
 def top_metric_leaderboard(
-    players: list[Player], key: str, *, size: int = 10
-) -> list[tuple[Player, float, float]]:
-    """Top `size` Players ranked by a Metric's per-90 value (as-is, unscaled,
-    for a percentage-format Statistic), with each Player's percentile
-    computed against that same per-90 value across `players`.
+    players: list[Player], key: str, *, kind: MetricKind = "per_90", size: int = 10
+) -> list[tuple[Player, float]]:
+    """Top `size` Players ranked by a Metric's value, highest first.
 
-    `players` is both the ranking population and the percentile reference
-    population — there is no separate reference population here, unlike
-    `compute_metric`/`percentile`. Players the Metric can't be computed for
-    (missing Statistic, or missing/zero minutes for a non-percentage one)
-    are excluded entirely.
-
-    Returns (player, value, percentile) tuples, highest value first.
+    `kind` is "per_90" (default; a Statistic already expressed as a percent
+    is returned as-is, see `per_90()`) or "raw" (the season total, unscaled).
+    Players the Metric can't be computed for (missing Statistic, or
+    missing/zero minutes for a non-percent "per_90" one) are excluded.
     """
-    scored = [(p, v) for p in players if (v := per_90(p, key)) is not None]
-    if not scored:
-        return []
-    all_values = [v for _, v in scored]
-    ranked = sorted(scored, key=lambda pv: pv[1], reverse=True)
-    return [
-        (player, value, 100 * sum(1 for v in all_values if v <= value) / len(all_values))
-        for player, value in ranked[:size]
-    ]
+    spec = MetricSpec(key=key, label=key, kind=kind)
+    scored = [(p, v) for p in players if (v := compute_metric(players, p, spec)) is not None]
+    return sorted(scored, key=lambda pv: pv[1], reverse=True)[:size]
 
 
 def scout_comparison(

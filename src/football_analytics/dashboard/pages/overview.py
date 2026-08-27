@@ -1,10 +1,10 @@
 """Overview page: Top 10 Players per selected Metric.
 
 Empty until a Metric is picked; each Metric selected adds its own Top 10
-table (Name, Team, Positions, per-90/percentage value, Percentile), laid
-out two per row in selection order. Percentile is computed against
-whichever population survives the active filters — there is no separate
-reference population on this page (see spec.md, ticket 04).
+table (Name, Team, Positions, value), laid out two per row in selection
+order. The value is per-90 or per-season (raw), per the sidebar toggle —
+a Statistic already expressed as a percent is shown as-is either way, see
+`per_90()`.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ import pandas as pd
 import streamlit as st
 
 from football_analytics.analysis.metrics import (
+    MetricKind,
     apply_minutes_floor,
     filter_by_position_group,
     position_group,
@@ -25,9 +26,16 @@ from football_analytics.domain.models import Player
 TABLE_SIZE = 10
 GRID_COLUMNS = 2
 
+VALUE_KIND_BY_LABEL: dict[str, MetricKind] = {
+    "Per-90": "per_90",
+    "Per Season": "raw",
+}
 
-def leaderboard_dataframe(players: list[Player], key: str, label: str) -> pd.DataFrame:
-    entries = top_metric_leaderboard(players, key, size=TABLE_SIZE)
+
+def leaderboard_dataframe(
+    players: list[Player], key: str, label: str, kind: MetricKind
+) -> pd.DataFrame:
+    entries = top_metric_leaderboard(players, key, kind=kind, size=TABLE_SIZE)
     return pd.DataFrame(
         [
             {
@@ -35,9 +43,8 @@ def leaderboard_dataframe(players: list[Player], key: str, label: str) -> pd.Dat
                 "Team": player.team.name,
                 "Positions": position_codes(player),
                 label: value,
-                "Percentile": pct,
             }
-            for player, value, pct in entries
+            for player, value in entries
         ]
     )
 
@@ -77,6 +84,7 @@ def main() -> None:
         )
 
         st.header("Metrics")
+        value_kind_label = st.radio("Metric type", list(VALUE_KIND_BY_LABEL), horizontal=True)
         selected_metric_labels = st.multiselect("Metrics", sorted(label_options))
 
     view_players = players
@@ -96,6 +104,8 @@ def main() -> None:
         st.info("Selecione uma métrica de desempenho")
         return
 
+    value_kind = VALUE_KIND_BY_LABEL[value_kind_label]
+
     for row_start in range(0, len(selected_metric_labels), GRID_COLUMNS):
         row_labels = selected_metric_labels[row_start : row_start + GRID_COLUMNS]
         columns = st.columns(GRID_COLUMNS)
@@ -103,7 +113,7 @@ def main() -> None:
             with column:
                 key = label_options[label]
                 st.subheader(label)
-                df = leaderboard_dataframe(view_players, key, label)
+                df = leaderboard_dataframe(view_players, key, label, value_kind)
                 if df.empty:
                     st.info("No players have this Metric under the current filters.")
                 else:
