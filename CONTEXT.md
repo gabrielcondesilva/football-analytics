@@ -39,6 +39,9 @@ _Avoid_: Metric, stat, número.
 Qualquer valor usado para comparação ou visualização — pode ser uma Statistic bruta ou um valor derivado dela (por-90, percentil, z-score). É o que o usuário escolhe na sidebar do dashboard.
 _Avoid_: Stat, KPI.
 
+**Quartil**:
+A faixa de 25 pontos percentuais em que o percentil de uma Metric do Player se encontra em relação à população de referência (Q1 = 0–25, Q2 = 25–50, Q3 = 50–75, Q4 = 75–100). Derivado do percentil já calculado, não é um cálculo independente.
+
 **Snapshot**:
 Uma captura datada das Statistics de um Player, feita em um momento do scraping. Permite múltiplos Snapshots por Player-Season ao longo do tempo, mesmo que hoje só exista um scraping único por Season.
 _Avoid_: Version, scrape, coleta.
