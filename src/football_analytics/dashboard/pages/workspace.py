@@ -28,7 +28,7 @@ from football_analytics.analysis.metrics import (
     scout_comparison,
 )
 from football_analytics.dashboard.data import get_players
-from football_analytics.dashboard.shared import metric_label_options
+from football_analytics.dashboard.shared import metric_label_options, position_codes
 from football_analytics.domain.models import Player
 from football_analytics.reports.player_report import build_player_report_pdf
 from football_analytics.reports.scout_comparison_report import (
@@ -59,7 +59,7 @@ def to_dataframe(players: list[Player]) -> pd.DataFrame:
             {
                 "Name": p.name,
                 "Team": p.team.name,
-                "Positions": ", ".join(pos.code for pos in p.positions),
+                "Positions": position_codes(p),
             }
             for p in players
         ]
@@ -148,7 +148,7 @@ def scout_comparison_dataframe(
             {
                 "Name": p.name,
                 "Team": p.team.name,
-                "Positions": ", ".join(pos.code for pos in p.positions),
+                "Positions": position_codes(p),
                 "Distance": distance,
             }
             for p, distance in results
@@ -250,14 +250,14 @@ def main() -> None:
         return
 
     team_names = sorted({p.team.name for p in players})
-    position_codes = sorted({pos.code for p in players for pos in p.positions})
+    position_code_options = sorted({pos.code for p in players for pos in p.positions})
     position_groups = sorted({g for p in players if (g := position_group(p)) is not None})
     label_options = metric_label_options(players)
 
     with st.sidebar:
         st.header("Filters")
         selected_teams = st.multiselect("Team", team_names)
-        selected_positions = st.multiselect("Position", position_codes)
+        selected_positions = st.multiselect("Position", position_code_options)
         selected_group = st.selectbox("Position Group", ["All", *position_groups])
         minutes_floor = st.number_input("Minutes Floor", min_value=0, value=0, step=90)
 
@@ -308,7 +308,7 @@ def main() -> None:
 
     group = position_group(reference)
     st.subheader(f"{reference.name} — {reference.team.name}")
-    st.caption(", ".join(pos.code for pos in reference.positions) or "No Position data")
+    st.caption(position_codes(reference) or "No Position data")
 
     insight_population = players if group is None else filter_by_position_group(players, group)
     insights = generate_insights(insight_population, reference)

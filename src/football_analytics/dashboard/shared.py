@@ -12,3 +12,8 @@ def metric_label_options(players: list[Player]) -> dict[str, str]:
         for s in p.statistics:
             options.setdefault(s.label, s.key)
     return options
+
+
+def position_codes(player: Player) -> str:
+    """Comma-separated Position codes for display (e.g. "CB, RB")."""
+    return ", ".join(pos.code for pos in player.positions)

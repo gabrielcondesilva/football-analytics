@@ -14,29 +14,26 @@ from supabase import Client
 from football_analytics.domain.models import Player, Position, Statistic, Team
 
 
-def get_latest_snapshot_id(client: Client) -> int | None:
-    result = client.table("snapshots").select("id").order("scraped_at", desc=True).limit(1).execute()
-    rows = cast(list[dict], result.data)
-    return int(rows[0]["id"]) if rows else None
-
-
-def get_snapshot_league_name(client: Client, snapshot_id: int) -> str | None:
-    """The name of the League a Snapshot belongs to, via Season -> League."""
+def get_latest_snapshot(client: Client) -> tuple[int, str | None] | None:
+    """The id and League name (via Season -> League) of the most recent
+    Snapshot, or None if no Snapshot exists yet. A single query rather than
+    one for the id and a second for the League, since both live on the same
+    `snapshots` row.
+    """
     result = (
         client.table("snapshots")
-        .select("seasons(leagues(name))")
-        .eq("id", snapshot_id)
+        .select("id, seasons(leagues(name))")
+        .order("scraped_at", desc=True)
         .limit(1)
         .execute()
     )
     rows = cast(list[dict], result.data)
     if not rows:
         return None
-    season = cast(dict | None, rows[0]["seasons"])
-    if season is None:
-        return None
-    league = cast(dict | None, season["leagues"])
-    return league["name"] if league is not None else None
+    row = rows[0]
+    season = cast(dict | None, row["seasons"])
+    league = cast(dict | None, season["leagues"]) if season is not None else None
+    return int(row["id"]), (league["name"] if league is not None else None)
 
 
 def list_players(client: Client) -> list[Player]:
@@ -48,8 +45,8 @@ def list_players(client: Client) -> list[Player]:
     so this works regardless of which Statistic categories, if any, have
     been ingested for a given Player.
     """
-    snapshot_id = get_latest_snapshot_id(client)
-    league_name = get_snapshot_league_name(client, snapshot_id) if snapshot_id is not None else None
+    latest = get_latest_snapshot(client)
+    snapshot_id, league_name = latest if latest is not None else (None, None)
 
     query = client.table("players").select(
         "id, fotmob_id, name, teams(fotmob_id, name), "

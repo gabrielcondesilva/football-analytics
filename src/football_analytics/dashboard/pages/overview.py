@@ -19,7 +19,7 @@ from football_analytics.analysis.metrics import (
     top_metric_leaderboard,
 )
 from football_analytics.dashboard.data import get_players
-from football_analytics.dashboard.shared import metric_label_options
+from football_analytics.dashboard.shared import metric_label_options, position_codes
 from football_analytics.domain.models import Player
 
 TABLE_SIZE = 10
@@ -33,7 +33,7 @@ def leaderboard_dataframe(players: list[Player], key: str, label: str) -> pd.Dat
             {
                 "Name": player.name,
                 "Team": player.team.name,
-                "Positions": ", ".join(pos.code for pos in player.positions),
+                "Positions": position_codes(player),
                 label: value,
                 "Percentile": pct,
             }
@@ -51,7 +51,7 @@ def main() -> None:
         return
 
     team_names = sorted({p.team.name for p in players})
-    position_codes = sorted({pos.code for p in players for pos in p.positions})
+    position_code_options = sorted({pos.code for p in players for pos in p.positions})
     position_groups = sorted({g for p in players if (g := position_group(p)) is not None})
     league_names = sorted({p.league for p in players if p.league})
     label_options = metric_label_options(players)
@@ -59,7 +59,7 @@ def main() -> None:
     with st.sidebar:
         st.header("Filters")
         selected_teams = st.multiselect("Team", team_names)
-        selected_positions = st.multiselect("Position", position_codes)
+        selected_positions = st.multiselect("Position", position_code_options)
         selected_group = st.selectbox("Position Group", ["All", *position_groups])
         selected_leagues = st.multiselect("League", league_names)
         minutes_floor = st.number_input("Minutes Floor", min_value=0, value=0, step=90)
