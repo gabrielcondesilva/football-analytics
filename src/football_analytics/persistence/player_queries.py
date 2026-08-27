@@ -11,21 +11,32 @@ from typing import cast
 
 from supabase import Client
 
-from football_analytics.domain.models import Player, Position, Team
+from football_analytics.domain.models import Player, Position, Statistic, Team
+
+
+def get_latest_snapshot_id(client: Client) -> int | None:
+    result = client.table("snapshots").select("id").order("scraped_at", desc=True).limit(1).execute()
+    rows = cast(list[dict], result.data)
+    return int(rows[0]["id"]) if rows else None
 
 
 def list_players(client: Client) -> list[Player]:
-    """Every Player currently in the database, with their Team and Position(s).
+    """Every Player currently in the database, with their Team, Position(s),
+    and Statistics from the latest Snapshot (empty tuple if none exist yet).
 
     Team and Position(s) are current-state attributes (not Snapshot-scoped),
     so this works regardless of which Statistic categories, if any, have
     been ingested for a given Player.
     """
-    result = (
-        client.table("players")
-        .select("id, fotmob_id, name, teams(fotmob_id, name), player_positions(code, position_group)")
-        .execute()
+    snapshot_id = get_latest_snapshot_id(client)
+
+    query = client.table("players").select(
+        "id, fotmob_id, name, teams(fotmob_id, name), "
+        "player_positions(code, position_group), statistics(key, label, value)"
     )
+    if snapshot_id is not None:
+        query = query.eq("statistics.snapshot_id", snapshot_id)
+    result = query.execute()
 
     players = []
     for row in cast(list[dict], result.data):
@@ -34,13 +45,16 @@ def list_players(client: Client) -> list[Player]:
         positions = tuple(
             Position(code=p["code"], group=p["position_group"]) for p in row["player_positions"]
         )
+        statistics = tuple(
+            Statistic(key=s["key"], label=s["label"], value=s["value"]) for s in row["statistics"]
+        )
         players.append(
             Player(
                 fotmob_id=row["fotmob_id"],
                 name=row["name"],
                 team=team,
                 positions=positions,
-                statistics=(),
+                statistics=statistics,
             )
         )
     return players
