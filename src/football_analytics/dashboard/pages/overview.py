@@ -67,6 +67,8 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Filters")
+        per90_labels = st.multiselect("Metrics (Per-90)", sorted(label_options))
+        season_labels = st.multiselect("Metrics (Per Season)", sorted(label_options))
         selected_teams = st.multiselect("Team", team_names)
         selected_positions = st.multiselect("Position", position_code_options)
         selected_group = st.selectbox("Position Group", ["All", *position_groups])
@@ -84,10 +86,6 @@ def main() -> None:
             disabled=True,
             help="Em breve — depende de dados de nacionalidade ainda não ingeridos.",
         )
-
-        st.header("Metrics")
-        per90_labels = st.multiselect("Metrics (Per-90)", sorted(label_options))
-        season_labels = st.multiselect("Metrics (Per Season)", sorted(label_options))
 
     view_players = players
     if selected_teams:
