@@ -20,15 +20,36 @@ def get_latest_snapshot_id(client: Client) -> int | None:
     return int(rows[0]["id"]) if rows else None
 
 
+def get_snapshot_league_name(client: Client, snapshot_id: int) -> str | None:
+    """The name of the League a Snapshot belongs to, via Season -> League."""
+    result = (
+        client.table("snapshots")
+        .select("seasons(leagues(name))")
+        .eq("id", snapshot_id)
+        .limit(1)
+        .execute()
+    )
+    rows = cast(list[dict], result.data)
+    if not rows:
+        return None
+    season = cast(dict | None, rows[0]["seasons"])
+    if season is None:
+        return None
+    league = cast(dict | None, season["leagues"])
+    return league["name"] if league is not None else None
+
+
 def list_players(client: Client) -> list[Player]:
     """Every Player currently in the database, with their Team, Position(s),
-    and Statistics from the latest Snapshot (empty tuple if none exist yet).
+    Statistics, and League (all from the latest Snapshot; empty/None if no
+    Snapshot exists yet).
 
     Team and Position(s) are current-state attributes (not Snapshot-scoped),
     so this works regardless of which Statistic categories, if any, have
     been ingested for a given Player.
     """
     snapshot_id = get_latest_snapshot_id(client)
+    league_name = get_snapshot_league_name(client, snapshot_id) if snapshot_id is not None else None
 
     query = client.table("players").select(
         "id, fotmob_id, name, teams(fotmob_id, name), "
@@ -56,6 +77,7 @@ def list_players(client: Client) -> list[Player]:
                 team=team,
                 positions=positions,
                 statistics=statistics,
+                league=league_name,
             )
         )
     return players

@@ -49,6 +49,10 @@ class Player:
     positions: tuple[Position, ...]
     statistics: tuple[Statistic, ...]
 
+    league: str | None = None
+    """Name of the League this Player's Statistics were captured under (via
+    their latest Snapshot's Season). None when no Snapshot exists yet."""
+
 
 @dataclass(frozen=True)
 class Snapshot:
