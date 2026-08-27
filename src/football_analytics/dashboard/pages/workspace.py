@@ -28,6 +28,7 @@ from football_analytics.analysis.metrics import (
     scout_comparison,
 )
 from football_analytics.dashboard.data import get_players
+from football_analytics.dashboard.shared import metric_label_options
 from football_analytics.domain.models import Player
 from football_analytics.reports.player_report import build_player_report_pdf
 from football_analytics.reports.scout_comparison_report import (
@@ -78,15 +79,6 @@ def _bar_chart_height(n_rows: int) -> int:
     """Enough height for `n_rows` horizontal bars to stay <=24px thick with
     breathing room, without the chart card growing unbounded."""
     return max(220, min(40 * n_rows + 80, 900))
-
-
-def metric_label_options(players: list[Player]) -> dict[str, str]:
-    """Map each available Statistic's label to its key, first label wins."""
-    options: dict[str, str] = {}
-    for p in players:
-        for s in p.statistics:
-            options.setdefault(s.label, s.key)
-    return options
 
 
 def leaderboard_dataframe(
