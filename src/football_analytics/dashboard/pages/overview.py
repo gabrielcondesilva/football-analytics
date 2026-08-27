@@ -1,10 +1,12 @@
 """Overview page: Top 10 Players per selected Metric.
 
-Empty until a Metric is picked; each Metric selected adds its own Top 10
-table (Name, Team, Positions, value), laid out two per row in selection
-order. The value is per-90 or per-season (raw), per the sidebar toggle —
-a Statistic already expressed as a percent is shown as-is either way, see
-`per_90()`.
+Empty until a Metric is picked; each Metric selected in either the Per-90
+or Per Season multiselect adds its own Top 10 table (Name, Team, Positions,
+value), laid out two per row — Per-90 selections first, then Per Season, in
+each multiselect's own selection order. Picking the same Metric in both
+shows both: they're independent selections, not a single toggle, so e.g.
+xA Per-90 and xA Per Season can sit side by side. A Statistic already
+expressed as a percent is shown as-is in both cases, see `per_90()`.
 """
 
 from __future__ import annotations
@@ -26,9 +28,9 @@ from football_analytics.domain.models import Player
 TABLE_SIZE = 10
 GRID_COLUMNS = 2
 
-VALUE_KIND_BY_LABEL: dict[str, MetricKind] = {
-    "Per-90": "per_90",
-    "Per Season": "raw",
+KIND_DISPLAY_LABEL: dict[MetricKind, str] = {
+    "per_90": "Per-90",
+    "raw": "Per Season",
 }
 
 
@@ -84,8 +86,8 @@ def main() -> None:
         )
 
         st.header("Metrics")
-        value_kind_label = st.radio("Metric type", list(VALUE_KIND_BY_LABEL), horizontal=True)
-        selected_metric_labels = st.multiselect("Metrics", sorted(label_options))
+        per90_labels = st.multiselect("Metrics (Per-90)", sorted(label_options))
+        season_labels = st.multiselect("Metrics (Per Season)", sorted(label_options))
 
     view_players = players
     if selected_teams:
@@ -100,20 +102,22 @@ def main() -> None:
         view_players = [p for p in view_players if p.league in selected_leagues]
     view_players = apply_minutes_floor(view_players, minutes_floor)
 
-    if not selected_metric_labels:
+    selections: list[tuple[str, MetricKind]] = [(label, "per_90") for label in per90_labels] + [
+        (label, "raw") for label in season_labels
+    ]
+
+    if not selections:
         st.info("Selecione uma métrica de desempenho")
         return
 
-    value_kind = VALUE_KIND_BY_LABEL[value_kind_label]
-
-    for row_start in range(0, len(selected_metric_labels), GRID_COLUMNS):
-        row_labels = selected_metric_labels[row_start : row_start + GRID_COLUMNS]
+    for row_start in range(0, len(selections), GRID_COLUMNS):
+        row = selections[row_start : row_start + GRID_COLUMNS]
         columns = st.columns(GRID_COLUMNS)
-        for column, label in zip(columns, row_labels, strict=False):
+        for column, (label, kind) in zip(columns, row, strict=False):
             with column:
                 key = label_options[label]
-                st.subheader(label)
-                df = leaderboard_dataframe(view_players, key, label, value_kind)
+                st.subheader(f"{label} ({KIND_DISPLAY_LABEL[kind]})")
+                df = leaderboard_dataframe(view_players, key, label, kind)
                 if df.empty:
                     st.info("No players have this Metric under the current filters.")
                 else:
