@@ -82,6 +82,37 @@ def test_per_90_returns_none_when_minutes_played_is_zero():
     assert per_90(player, "goals") is None
 
 
+def test_per_90_returns_the_raw_value_for_a_percentage_statistic_without_dividing():
+    save_percentage = Statistic(
+        key="save_percentage", label="Save percentage", value=64.8, format="percentage"
+    )
+    minutes = Statistic(key="minutes_played", label="Minutes", value=900.0, format="number")
+    player = Player(
+        fotmob_id=1,
+        name="Goalkeeper",
+        team=TEAM,
+        positions=(Position(code="GK", group="Goalkeeper"),),
+        statistics=(save_percentage, minutes),
+    )
+
+    assert per_90(player, "save_percentage") == 64.8
+
+
+def test_per_90_returns_the_raw_percentage_even_without_minutes_played():
+    save_percentage = Statistic(
+        key="save_percentage", label="Save percentage", value=64.8, format="percentage"
+    )
+    player = Player(
+        fotmob_id=1,
+        name="Goalkeeper",
+        team=TEAM,
+        positions=(Position(code="GK", group="Goalkeeper"),),
+        statistics=(save_percentage,),
+    )
+
+    assert per_90(player, "save_percentage") == 64.8
+
+
 def test_percentile_ranks_the_player_against_the_given_peers():
     low = make_player(1, "Low", "Forward", goals=1.0)
     mid = make_player(2, "Mid", "Forward", goals=5.0)

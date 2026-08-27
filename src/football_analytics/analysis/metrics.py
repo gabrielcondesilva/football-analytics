@@ -51,11 +51,21 @@ def apply_minutes_floor(players: list[Player], minutes_floor: float) -> list[Pla
 
 
 def per_90(player: Player, key: str) -> float | None:
-    value = statistic_value(player, key)
-    minutes = statistic_value(player, MINUTES_PLAYED_KEY)
-    if value is None or not minutes:
+    """Scale a Statistic to a per-90-minutes rate.
+
+    Statistics already expressed as a percentage (`format == "percentage"`)
+    are returned as-is: scaling a rate by minutes played would produce a
+    meaningless number, not a fairer comparison.
+    """
+    stat = next((s for s in player.statistics if s.key == key), None)
+    if stat is None:
         return None
-    return value * 90 / minutes
+    if stat.format == "percentage":
+        return stat.value
+    minutes = statistic_value(player, MINUTES_PLAYED_KEY)
+    if not minutes:
+        return None
+    return stat.value * 90 / minutes
 
 
 def percentile(players: list[Player], player: Player, key: str) -> float | None:

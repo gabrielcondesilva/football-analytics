@@ -164,10 +164,42 @@ def test_parse_category_stats_extracts_stats_from_the_goalkeeper_specific_catego
 
     statistics = parse_category_stats(payload)
 
-    assert Statistic(key="saves", label="Saves", value=57.0) in statistics
-    assert Statistic(key="save_percentage", label="Save percentage", value=64.8) in statistics
-    assert Statistic(key="goals_prevented", label="Goals prevented", value=-2.70) in statistics
-    assert Statistic(key="successful_passes", label="Accurate passes", value=644.0) in statistics
+    assert Statistic(key="saves", label="Saves", value=57.0, format="number") in statistics
+    assert (
+        Statistic(key="save_percentage", label="Save percentage", value=64.8, format="percentage")
+        in statistics
+    )
+    assert (
+        Statistic(key="goals_prevented", label="Goals prevented", value=-2.70, format="fraction")
+        in statistics
+    )
+    assert (
+        Statistic(key="successful_passes", label="Accurate passes", value=644.0, format="number")
+        in statistics
+    )
+
+
+def test_parse_stat_items_captures_the_format_of_each_statistic():
+    payload = load_fixture("goalkeeper_player_stats.json")
+
+    statistics = parse_category_stats(payload)
+
+    save_percentage = next(s for s in statistics if s.key == "save_percentage")
+    saves = next(s for s in statistics if s.key == "saves")
+    assert save_percentage.format == "percentage"
+    assert saves.format == "number"
+
+
+def test_parse_stat_items_defaults_the_format_to_number_when_stat_format_is_missing():
+    payload = {
+        "topStatCard": {
+            "items": [{"localizedTitleId": "goals", "title": "Goals", "statValue": "7"}]
+        }
+    }
+
+    statistics = parse_top_stats(payload)
+
+    assert statistics == [Statistic(key="goals", label="Goals", value=7.0, format="number")]
 
 
 def test_parse_category_stats_skips_items_with_a_non_numeric_stat_value():

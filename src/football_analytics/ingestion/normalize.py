@@ -93,7 +93,10 @@ def _parse_stat_items(items: list[dict]) -> list[Statistic]:
             value = float(item["statValue"])
         except (TypeError, ValueError):
             continue
-        statistics.append(Statistic(key=item["localizedTitleId"], label=item["title"], value=value))
+        stat_format = item.get("statFormat") or "number"
+        statistics.append(
+            Statistic(key=item["localizedTitleId"], label=item["title"], value=value, format=stat_format)
+        )
     return statistics
 
 

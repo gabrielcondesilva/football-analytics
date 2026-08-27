@@ -65,6 +65,7 @@ class SupabaseRepo:
                         "key": s.key,
                         "label": s.label,
                         "value": s.value,
+                        "format": s.format,
                     }
                     for s in player.statistics
                 ],

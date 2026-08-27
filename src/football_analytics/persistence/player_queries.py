@@ -32,7 +32,7 @@ def list_players(client: Client) -> list[Player]:
 
     query = client.table("players").select(
         "id, fotmob_id, name, teams(fotmob_id, name), "
-        "player_positions(code, position_group), statistics(key, label, value)"
+        "player_positions(code, position_group), statistics(key, label, value, format)"
     )
     if snapshot_id is not None:
         query = query.eq("statistics.snapshot_id", snapshot_id)
@@ -46,7 +46,8 @@ def list_players(client: Client) -> list[Player]:
             Position(code=p["code"], group=p["position_group"]) for p in row["player_positions"]
         )
         statistics = tuple(
-            Statistic(key=s["key"], label=s["label"], value=s["value"]) for s in row["statistics"]
+            Statistic(key=s["key"], label=s["label"], value=s["value"], format=s["format"])
+            for s in row["statistics"]
         )
         players.append(
             Player(
