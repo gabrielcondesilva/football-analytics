@@ -76,3 +76,52 @@ def compute_metric(players: list[Player], player: Player, spec: MetricSpec) -> f
     if spec.kind == "per_90":
         return per_90(player, spec.key)
     return percentile(players, player, spec.key)
+
+
+def scout_comparison(
+    players: list[Player],
+    reference: Player,
+    specs: list[MetricSpec],
+    *,
+    restrict_to_position_group: bool = True,
+) -> list[tuple[Player, float]]:
+    """Rank `players` by similarity to `reference` across `specs`, weighted
+    equally, excluding `reference` itself.
+
+    Each Metric is z-score normalized across the candidate pool (plus the
+    reference) before combining, so Metrics on different scales contribute
+    equally to the resulting distance. `players` should already reflect the
+    current Minutes Floor - this function only handles the Position Group
+    restriction and the ranking itself.
+
+    Returns (player, distance) pairs sorted ascending by distance (most
+    similar first).
+    """
+    pool = [p for p in players if p.fotmob_id != reference.fotmob_id]
+    if restrict_to_position_group:
+        ref_group = position_group(reference)
+        pool = [p for p in pool if position_group(p) == ref_group]
+    if not pool or not specs:
+        return []
+
+    all_players = [reference, *pool]
+    normalized: dict[int, list[float]] = {p.fotmob_id: [] for p in all_players}
+
+    for spec in specs:
+        raw_values = {p.fotmob_id: compute_metric(all_players, p, spec) for p in all_players}
+        known = [v for v in raw_values.values() if v is not None]
+        mean = sum(known) / len(known) if known else 0.0
+        variance = sum((v - mean) ** 2 for v in known) / len(known) if known else 0.0
+        std = variance**0.5
+        for p in all_players:
+            value = raw_values[p.fotmob_id]
+            z = 0.0 if value is None or std == 0 else (value - mean) / std
+            normalized[p.fotmob_id].append(z)
+
+    ref_vector = normalized[reference.fotmob_id]
+    ranked = [
+        (p, sum((a - b) ** 2 for a, b in zip(ref_vector, normalized[p.fotmob_id])) ** 0.5)
+        for p in pool
+    ]
+    ranked.sort(key=lambda pair: pair[1])
+    return ranked

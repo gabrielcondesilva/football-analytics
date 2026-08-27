@@ -24,6 +24,7 @@ from football_analytics.analysis.metrics import (
     compute_metric,
     filter_by_position_group,
     position_group,
+    scout_comparison,
 )
 from football_analytics.domain.models import Player
 from football_analytics.persistence.player_queries import list_players
@@ -82,6 +83,22 @@ def leaderboard_dataframe(
     return df
 
 
+def scout_comparison_dataframe(
+    results: list[tuple[Player, float]],
+) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "Name": p.name,
+                "Team": p.team.name,
+                "Positions": ", ".join(pos.code for pos in p.positions),
+                "Distance": distance,
+            }
+            for p, distance in results
+        ]
+    )
+
+
 def main() -> None:
     st.set_page_config(page_title="Player Analytics", layout="wide")
     st.title("Premier League 2025/26 — Players")
@@ -126,16 +143,45 @@ def main() -> None:
     st.dataframe(to_dataframe(view_players), width="stretch", hide_index=True)
 
     metric_kind = METRIC_KIND_BY_LABEL[metric_kind_label]
-    for metric_label in selected_metric_labels:
-        spec = MetricSpec(key=label_options[metric_label], label=metric_label, kind=metric_kind)
+    specs = [
+        MetricSpec(key=label_options[label], label=label, kind=metric_kind)
+        for label in selected_metric_labels
+    ]
+
+    for spec in specs:
         df = leaderboard_dataframe(reference_players, view_players, spec)
-        st.subheader(f"{metric_label} ({metric_kind_label})")
+        st.subheader(f"{spec.label} ({metric_kind_label})")
         if df.empty:
             st.info("No players have this Metric under the current filters.")
             continue
-        fig = px.bar(df, x=metric_label, y="Name", orientation="h", color="Team")
+        fig = px.bar(df, x=spec.label, y="Name", orientation="h", color="Team")
         fig.update_layout(yaxis={"categoryorder": "total ascending"})
         st.plotly_chart(fig, width="stretch")
+
+    st.header("Scout Comparison")
+    player_labels = {f"{p.name} ({p.team.name})": p for p in sorted(players, key=lambda p: p.name)}
+    reference_label = st.selectbox("Reference Player", list(player_labels))
+    restrict_group = st.checkbox("Restrict to reference Player's Position Group", value=True)
+
+    if not specs:
+        st.info("Select at least one Metric above to run a Scout Comparison.")
+    else:
+        reference = player_labels[reference_label]
+        candidates = apply_minutes_floor(players, minutes_floor)
+        if not any(p.fotmob_id == reference.fotmob_id for p in candidates):
+            candidates = [reference, *candidates]
+
+        results = scout_comparison(
+            candidates, reference, specs, restrict_to_position_group=restrict_group
+        )
+        if not results:
+            st.info("No comparable Players found under the current filters.")
+        else:
+            st.dataframe(
+                scout_comparison_dataframe(results[:LEADERBOARD_SIZE]),
+                width="stretch",
+                hide_index=True,
+            )
 
 
 main()

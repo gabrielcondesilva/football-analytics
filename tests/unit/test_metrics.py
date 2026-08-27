@@ -1,3 +1,5 @@
+import pytest
+
 from football_analytics.analysis.metrics import (
     MetricSpec,
     apply_minutes_floor,
@@ -6,6 +8,7 @@ from football_analytics.analysis.metrics import (
     per_90,
     percentile,
     position_group,
+    scout_comparison,
     statistic_value,
 )
 from football_analytics.domain.models import Player, Position, Statistic, Team
@@ -120,3 +123,78 @@ def test_compute_metric_dispatches_to_percentile():
     spec = MetricSpec(key="goals", label="Goals percentile", kind="percentile")
 
     assert compute_metric([low, high], high, spec) == 100.0
+
+
+def test_scout_comparison_excludes_the_reference_player_from_the_results():
+    reference = make_player(1, "Reference", "Forward", goals=5.0)
+    other = make_player(2, "Other", "Forward", goals=5.0)
+    specs = [MetricSpec(key="goals", label="Goals", kind="raw")]
+
+    results = scout_comparison([reference, other], reference, specs)
+
+    assert [p for p, _ in results] == [other]
+
+
+def test_scout_comparison_ranks_the_closest_match_first():
+    reference = make_player(1, "Reference", "Forward", goals=10.0, assists=5.0)
+    close = make_player(2, "Close", "Forward", goals=9.0, assists=5.0)
+    far = make_player(3, "Far", "Forward", goals=1.0, assists=0.0)
+    specs = [
+        MetricSpec(key="goals", label="Goals", kind="raw"),
+        MetricSpec(key="assists", label="Assists", kind="raw"),
+    ]
+
+    results = scout_comparison([reference, close, far], reference, specs)
+
+    assert [p.name for p, _ in results] == ["Close", "Far"]
+
+
+def test_scout_comparison_restricts_to_the_reference_position_group_by_default():
+    reference = make_player(1, "Reference", "Forward", goals=5.0)
+    same_group = make_player(2, "SameGroup", "Forward", goals=5.0)
+    other_group = make_player(3, "OtherGroup", "Defender", goals=5.0)
+    specs = [MetricSpec(key="goals", label="Goals", kind="raw")]
+
+    results = scout_comparison([reference, same_group, other_group], reference, specs)
+
+    assert [p.name for p, _ in results] == ["SameGroup"]
+
+
+def test_scout_comparison_can_disable_the_position_group_restriction():
+    reference = make_player(1, "Reference", "Forward", goals=5.0)
+    other_group = make_player(2, "OtherGroup", "Defender", goals=5.0)
+    specs = [MetricSpec(key="goals", label="Goals", kind="raw")]
+
+    results = scout_comparison(
+        [reference, other_group], reference, specs, restrict_to_position_group=False
+    )
+
+    assert [p.name for p, _ in results] == ["OtherGroup"]
+
+
+def test_scout_comparison_weighs_metrics_equally_regardless_of_scale():
+    # "budget" spans millions, "rating" spans single digits. Without z-score
+    # normalization, the huge-scale budget difference would swamp the
+    # distance calculation. Each candidate matches the reference exactly on
+    # one Metric and diverges on the other, in a perfectly symmetric pattern
+    # - equal weighting must make both candidates equidistant regardless of
+    # which Metric's raw scale is larger.
+    reference = make_player(1, "Reference", "Forward", budget=1_000_000.0, rating=100.0)
+    similar_budget = make_player(2, "SimilarBudget", "Forward", budget=1_000_000.0, rating=0.0)
+    similar_rating = make_player(3, "SimilarRating", "Forward", budget=0.0, rating=100.0)
+    specs = [
+        MetricSpec(key="budget", label="Budget", kind="raw"),
+        MetricSpec(key="rating", label="Rating", kind="raw"),
+    ]
+
+    results = scout_comparison([reference, similar_budget, similar_rating], reference, specs)
+
+    distances = {p.name: d for p, d in results}
+    assert distances["SimilarBudget"] == pytest.approx(distances["SimilarRating"])
+
+
+def test_scout_comparison_returns_empty_list_when_no_candidates_remain():
+    reference = make_player(1, "Reference", "Forward", goals=5.0)
+    specs = [MetricSpec(key="goals", label="Goals", kind="raw")]
+
+    assert scout_comparison([reference], reference, specs) == []
