@@ -1,0 +1,182 @@
+{
+  "topStatCard": {
+    "display": "stats-group",
+    "id": "top-stat-card",
+    "items": [
+      {
+        "localizedTitleId": "goals_conceded",
+        "per90": 1.19,
+        "percentileRank": 55.0,
+        "percentileRankPer90": 55.0,
+        "statFormat": "number",
+        "statValue": "31",
+        "title": "Conceded"
+      },
+      {
+        "localizedTitleId": "clean_sheet_title",
+        "per90": 0.31,
+        "percentileRank": 60.0,
+        "percentileRankPer90": 60.0,
+        "statFormat": "number",
+        "statValue": "8",
+        "title": "Clean sheets"
+      },
+      {
+        "localizedTitleId": "rating",
+        "per90": 6.82,
+        "percentileRank": 70.0,
+        "percentileRankPer90": 70.0,
+        "statFormat": "fraction",
+        "statValue": "6.82",
+        "title": "Rating"
+      },
+      {
+        "localizedTitleId": "matches_uppercase",
+        "per90": 26,
+        "percentileRank": 65.0,
+        "percentileRankPer90": 65.0,
+        "statFormat": "number",
+        "statValue": "26",
+        "title": "Matches"
+      },
+      {
+        "localizedTitleId": "player_started_matches",
+        "per90": 26,
+        "percentileRank": 65.0,
+        "percentileRankPer90": 65.0,
+        "statFormat": "number",
+        "statValue": "26",
+        "title": "Started"
+      },
+      {
+        "localizedTitleId": "saved_penalties",
+        "per90": 0,
+        "percentileRank": 45.0,
+        "percentileRankPer90": 45.0,
+        "statFormat": "fraction",
+        "statValue": "0/2",
+        "title": "Penalties saved"
+      }
+    ],
+    "type": "stat-values"
+  },
+  "statsSection": {
+    "id": "stats-section",
+    "items": [
+      {
+        "display": "stats-group",
+        "items": [
+          {
+            "localizedTitleId": "saves",
+            "per90": 2.19,
+            "percentileRank": 58.0,
+            "percentileRankPer90": 58.0,
+            "statFormat": "number",
+            "statValue": "57",
+            "title": "Saves"
+          },
+          {
+            "localizedTitleId": "save_percentage",
+            "per90": 64.8,
+            "percentileRank": 50.0,
+            "percentileRankPer90": 50.0,
+            "statFormat": "percentage",
+            "statValue": "64.8",
+            "title": "Save percentage"
+          },
+          {
+            "localizedTitleId": "goals_conceded",
+            "per90": 1.19,
+            "percentileRank": 55.0,
+            "percentileRankPer90": 55.0,
+            "statFormat": "number",
+            "statValue": "31",
+            "title": "Goals conceded"
+          },
+          {
+            "localizedTitleId": "goals_prevented",
+            "per90": -0.1,
+            "percentileRank": 40.0,
+            "percentileRankPer90": 40.0,
+            "statFormat": "fraction",
+            "statValue": "-2.70",
+            "title": "Goals prevented"
+          },
+          {
+            "localizedTitleId": "penalty_saves",
+            "per90": 0,
+            "percentileRank": 45.0,
+            "percentileRankPer90": 45.0,
+            "statFormat": "number",
+            "statValue": "0",
+            "title": "Penalty saves"
+          }
+        ],
+        "localizedTitleId": "goalkeeping",
+        "title": "Goalkeeping",
+        "type": "stat-values"
+      },
+      {
+        "display": "stats-group",
+        "items": [
+          {
+            "localizedTitleId": "successful_passes",
+            "per90": 24.8,
+            "percentileRank": 60.0,
+            "percentileRankPer90": 60.0,
+            "statFormat": "number",
+            "statValue": "644",
+            "title": "Accurate passes"
+          },
+          {
+            "localizedTitleId": "successful_passes_accuracy",
+            "per90": 79.0,
+            "percentileRank": 55.0,
+            "percentileRankPer90": 55.0,
+            "statFormat": "percentage",
+            "statValue": "79.0",
+            "title": "Pass accuracy"
+          },
+          {
+            "localizedTitleId": "long_balls_accurate",
+            "per90": 4.15,
+            "percentileRank": 62.0,
+            "percentileRankPer90": 62.0,
+            "statFormat": "number",
+            "statValue": "108",
+            "title": "Accurate long balls"
+          }
+        ],
+        "localizedTitleId": "distribution",
+        "title": "Distribution",
+        "type": "stat-values"
+      },
+      {
+        "display": "stats-group",
+        "items": [
+          {
+            "localizedTitleId": "yellow_cards",
+            "per90": 0.04,
+            "percentileRank": 15.0,
+            "percentileRankPer90": 15.0,
+            "statFormat": "number",
+            "statValue": "1",
+            "title": "Yellow cards"
+          },
+          {
+            "localizedTitleId": "red_cards",
+            "per90": 0,
+            "percentileRank": 10.0,
+            "percentileRankPer90": 10.0,
+            "statFormat": "number",
+            "statValue": "0",
+            "title": "Red cards"
+          }
+        ],
+        "localizedTitleId": "discipline",
+        "title": "Discipline",
+        "type": "stat-values"
+      }
+    ]
+  }
+}

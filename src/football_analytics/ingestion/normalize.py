@@ -55,8 +55,40 @@ def find_entry_id(player_data_payload: dict, *, season_name: str, tournament_id:
 
 
 def parse_top_stats(player_stats_payload: dict) -> list[Statistic]:
+    return _parse_stat_items(player_stats_payload.get("topStatCard", {}).get("items", []))
+
+
+def parse_category_stats(player_stats_payload: dict) -> list[Statistic]:
+    """Normalize every Statistic category FotMob returns for a Player's profile.
+
+    Covers both outfield categories (e.g. Shooting, Passing, Possession,
+    Defending) and the goalkeeper-specific ones (Goalkeeping, Distribution):
+    FotMob returns whichever set applies to the Player under the same
+    `statsSection.items` shape, so no goalkeeper-specific branching is needed
+    here.
+    """
     statistics = []
-    for item in player_stats_payload.get("topStatCard", {}).get("items", []):
+    for category in player_stats_payload.get("statsSection", {}).get("items", []):
+        statistics.extend(_parse_stat_items(category.get("items", [])))
+    return statistics
+
+
+def parse_all_stats(player_stats_payload: dict) -> list[Statistic]:
+    """All Statistics for a Player's profile: Top Stats plus every category.
+
+    A handful of keys (e.g. "goals") are surfaced in both topStatCard and a
+    category with the same value, so duplicates are collapsed, keeping the
+    first (Top Stats) occurrence.
+    """
+    by_key: dict[str, Statistic] = {}
+    for stat in [*parse_top_stats(player_stats_payload), *parse_category_stats(player_stats_payload)]:
+        by_key.setdefault(stat.key, stat)
+    return list(by_key.values())
+
+
+def _parse_stat_items(items: list[dict]) -> list[Statistic]:
+    statistics = []
+    for item in items:
         try:
             value = float(item["statValue"])
         except (TypeError, ValueError):

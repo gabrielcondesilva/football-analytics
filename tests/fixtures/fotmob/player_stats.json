@@ -195,6 +195,146 @@
         "localizedTitleId": "physical_metrics",
         "title": "Physical",
         "type": "stat-values"
+      },
+      {
+        "display": "stats-group",
+        "items": [
+          {
+            "localizedTitleId": "assists",
+            "per90": 0.20224719101123598,
+            "percentileRank": 85.49618320610686,
+            "percentileRankPer90": 77.09923664122137,
+            "statFormat": "number",
+            "statValue": "5",
+            "title": "Assists"
+          },
+          {
+            "localizedTitleId": "expected_assists",
+            "per90": 0.19,
+            "percentileRank": 80.0,
+            "percentileRankPer90": 78.0,
+            "statFormat": "fraction",
+            "statValue": "4.81",
+            "title": "xA"
+          },
+          {
+            "localizedTitleId": "successful_passes",
+            "per90": 53.4,
+            "percentileRank": 60.0,
+            "percentileRankPer90": 58.0,
+            "statFormat": "number",
+            "statValue": "1327",
+            "title": "Accurate passes"
+          },
+          {
+            "localizedTitleId": "chances_created",
+            "per90": 2.1,
+            "percentileRank": 70.0,
+            "percentileRankPer90": 68.0,
+            "statFormat": "number",
+            "statValue": "53",
+            "title": "Chances created"
+          }
+        ],
+        "localizedTitleId": "passing",
+        "title": "Passing",
+        "type": "stat-values"
+      },
+      {
+        "display": "stats-group",
+        "items": [
+          {
+            "localizedTitleId": "dribbles_succeeded",
+            "per90": 1.1,
+            "percentileRank": 65.0,
+            "percentileRankPer90": 63.0,
+            "statFormat": "number",
+            "statValue": "27",
+            "title": "Dribbles"
+          },
+          {
+            "localizedTitleId": "duel_won",
+            "per90": 5.4,
+            "percentileRank": 40.0,
+            "percentileRankPer90": 38.0,
+            "statFormat": "number",
+            "statValue": "134",
+            "title": "Duels won"
+          },
+          {
+            "localizedTitleId": "touches",
+            "per90": 55.3,
+            "percentileRank": 50.0,
+            "percentileRankPer90": 48.0,
+            "statFormat": "number",
+            "statValue": "1372",
+            "title": "Touches"
+          }
+        ],
+        "localizedTitleId": "possession",
+        "title": "Possession",
+        "type": "stat-values"
+      },
+      {
+        "display": "stats-group",
+        "items": [
+          {
+            "localizedTitleId": "matchstats.headers.tackles",
+            "per90": 1.5,
+            "percentileRank": 30.0,
+            "percentileRankPer90": 28.0,
+            "statFormat": "number",
+            "statValue": "37",
+            "title": "Tackles"
+          },
+          {
+            "localizedTitleId": "interceptions",
+            "per90": 0.8,
+            "percentileRank": 25.0,
+            "percentileRankPer90": 23.0,
+            "statFormat": "number",
+            "statValue": "20",
+            "title": "Interceptions"
+          },
+          {
+            "localizedTitleId": "recoveries",
+            "per90": 4.9,
+            "percentileRank": 35.0,
+            "percentileRankPer90": 33.0,
+            "statFormat": "number",
+            "statValue": "122",
+            "title": "Recoveries"
+          }
+        ],
+        "localizedTitleId": "defending",
+        "title": "Defending",
+        "type": "stat-values"
+      },
+      {
+        "display": "stats-group",
+        "items": [
+          {
+            "localizedTitleId": "yellow_cards",
+            "per90": 0.1,
+            "percentileRank": 20.0,
+            "percentileRankPer90": 20.0,
+            "statFormat": "number",
+            "statValue": "3",
+            "title": "Yellow cards"
+          },
+          {
+            "localizedTitleId": "red_cards",
+            "per90": 0,
+            "percentileRank": 10.0,
+            "percentileRankPer90": 10.0,
+            "statFormat": "number",
+            "statValue": "0",
+            "title": "Red cards"
+          }
+        ],
+        "localizedTitleId": "discipline",
+        "title": "Discipline",
+        "type": "stat-values"
       }
     ]
   }

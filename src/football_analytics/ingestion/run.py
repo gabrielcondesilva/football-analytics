@@ -1,4 +1,6 @@
-"""Ticket 01: ingest the Premier League 2025/2026 roster and Top Stats into Supabase.
+"""Ingest the Premier League 2025/2026 roster and full Statistic profile
+(Top Stats plus every category, including the goalkeeper-specific ones)
+into Supabase.
 
 Usage: `uv run python -m football_analytics.ingestion.run`
 
@@ -22,9 +24,9 @@ from supabase import create_client
 from football_analytics.ingestion.fotmob_client import FotMobClient
 from football_analytics.ingestion.normalize import (
     find_entry_id,
+    parse_all_stats,
     parse_squad,
     parse_teams,
-    parse_top_stats,
     with_statistics,
 )
 from football_analytics.persistence.supabase_repo import SupabaseRepo
@@ -72,7 +74,7 @@ def run() -> None:
                     continue
 
                 player_stats = client.get_player_stats(roster_player.fotmob_id, entry_id)
-                statistics = parse_top_stats(player_stats)
+                statistics = parse_all_stats(player_stats)
                 player = with_statistics(roster_player, statistics)
 
                 repo.save_player(snapshot_id, team_id, player)

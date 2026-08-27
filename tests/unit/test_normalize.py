@@ -4,6 +4,8 @@ from pathlib import Path
 from football_analytics.domain.models import Player, Position, Statistic, Team
 from football_analytics.ingestion.normalize import (
     find_entry_id,
+    parse_all_stats,
+    parse_category_stats,
     parse_squad,
     parse_teams,
     parse_top_stats,
@@ -143,6 +145,74 @@ def test_parse_top_stats_skips_items_with_a_non_numeric_stat_value():
     statistics = parse_top_stats(payload)
 
     assert statistics == [Statistic(key="goals", label="Goals", value=7.0)]
+
+
+def test_parse_category_stats_extracts_stats_from_every_outfield_category():
+    payload = load_fixture("player_stats.json")
+
+    statistics = parse_category_stats(payload)
+
+    assert Statistic(key="shots", label="Shots", value=71.0) in statistics
+    assert Statistic(key="chances_created", label="Chances created", value=53.0) in statistics
+    assert Statistic(key="dribbles_succeeded", label="Dribbles", value=27.0) in statistics
+    assert Statistic(key="interceptions", label="Interceptions", value=20.0) in statistics
+    assert Statistic(key="yellow_cards", label="Yellow cards", value=3.0) in statistics
+
+
+def test_parse_category_stats_extracts_stats_from_the_goalkeeper_specific_categories():
+    payload = load_fixture("goalkeeper_player_stats.json")
+
+    statistics = parse_category_stats(payload)
+
+    assert Statistic(key="saves", label="Saves", value=57.0) in statistics
+    assert Statistic(key="save_percentage", label="Save percentage", value=64.8) in statistics
+    assert Statistic(key="goals_prevented", label="Goals prevented", value=-2.70) in statistics
+    assert Statistic(key="successful_passes", label="Accurate passes", value=644.0) in statistics
+
+
+def test_parse_category_stats_skips_items_with_a_non_numeric_stat_value():
+    payload = load_fixture("goalkeeper_player_stats.json")
+
+    statistics = parse_category_stats(payload)
+
+    assert all(s.key != "saved_penalties" for s in statistics)
+
+
+def test_parse_category_stats_returns_empty_list_when_there_is_no_stats_section():
+    statistics = parse_category_stats({})
+
+    assert statistics == []
+
+
+def test_parse_all_stats_combines_top_stats_and_every_category_for_an_outfield_player():
+    payload = load_fixture("player_stats.json")
+
+    statistics = parse_all_stats(payload)
+
+    keys = {s.key for s in statistics}
+    assert "rating" in keys  # from topStatCard
+    assert "shots" in keys  # from the shooting category
+    assert "chances_created" in keys  # from the passing category
+    assert "interceptions" in keys  # from the defending category
+
+
+def test_parse_all_stats_deduplicates_keys_shared_by_top_stats_and_a_category():
+    payload = load_fixture("player_stats.json")
+
+    statistics = parse_all_stats(payload)
+
+    assert [s for s in statistics if s.key == "goals"] == [Statistic(key="goals", label="Goals", value=7.0)]
+
+
+def test_parse_all_stats_covers_the_goalkeeper_specific_categories():
+    payload = load_fixture("goalkeeper_player_stats.json")
+
+    statistics = parse_all_stats(payload)
+
+    keys = {s.key for s in statistics}
+    assert "saves" in keys
+    assert "save_percentage" in keys
+    assert "successful_passes" in keys  # from the distribution category
 
 
 def test_with_statistics_returns_a_player_carrying_the_given_statistics():
