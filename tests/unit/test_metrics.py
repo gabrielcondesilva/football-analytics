@@ -1,10 +1,12 @@
 import pytest
 
 from football_analytics.analysis.metrics import (
+    Insight,
     MetricSpec,
     apply_minutes_floor,
     compute_metric,
     filter_by_position_group,
+    generate_insights,
     per_90,
     percentile,
     position_group,
@@ -198,3 +200,66 @@ def test_scout_comparison_returns_empty_list_when_no_candidates_remain():
     specs = [MetricSpec(key="goals", label="Goals", kind="raw")]
 
     assert scout_comparison([reference], reference, specs) == []
+
+
+def make_population(size: int, group: str, key: str) -> list[Player]:
+    return [make_player(i, f"Player{i}", group, **{key: float(i)}) for i in range(1, size + 1)]
+
+
+def test_generate_insights_flags_a_statistic_above_the_high_threshold_as_a_strength():
+    population = make_population(10, "Forward", "goals")
+    top_scorer = population[-1]
+
+    insights = generate_insights(population, top_scorer)
+
+    assert insights == [Insight(key="goals", label="goals", percentile=100.0, kind="strength")]
+
+
+def test_generate_insights_flags_a_statistic_at_or_below_the_low_threshold_as_a_weakness():
+    population = make_population(10, "Forward", "goals")
+    bottom_scorer = population[0]
+
+    insights = generate_insights(population, bottom_scorer)
+
+    assert insights == [Insight(key="goals", label="goals", percentile=10.0, kind="weakness")]
+
+
+def test_generate_insights_ignores_a_statistic_in_the_middle_of_the_pack():
+    population = make_population(10, "Forward", "goals")
+    middling = population[4]  # 50th percentile
+
+    insights = generate_insights(population, middling)
+
+    assert insights == []
+
+
+def test_generate_insights_respects_custom_thresholds():
+    population = make_population(10, "Forward", "goals")
+    middling = population[4]  # 50th percentile
+
+    insights = generate_insights(population, middling, high_threshold=50.0, low_threshold=50.0)
+
+    assert insights == [Insight(key="goals", label="goals", percentile=50.0, kind="strength")]
+
+
+def test_generate_insights_sorts_strengths_before_weaknesses_by_extremity():
+    target = make_player(1, "Target", "Forward", goals=10.0, assists=1.0)
+    peers = [
+        make_player(i, f"Peer{i}", "Forward", goals=float(i - 1), assists=float(i))
+        for i in range(2, 11)
+    ]
+    population = [target, *peers]
+
+    insights = generate_insights(population, target)
+
+    assert [i.key for i in insights] == ["goals", "assists"]
+    assert insights[0].kind == "strength"
+    assert insights[1].kind == "weakness"
+
+
+def test_generate_insights_skips_statistics_with_no_percentile():
+    player = make_player(1, "Player", "Forward", goals=5.0)
+
+    insights = generate_insights([], player)
+
+    assert insights == []

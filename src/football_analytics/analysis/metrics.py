@@ -14,6 +14,7 @@ from football_analytics.domain.models import Player
 MINUTES_PLAYED_KEY = "minutes_played"
 
 MetricKind = Literal["raw", "per_90", "percentile"]
+InsightKind = Literal["strength", "weakness"]
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,14 @@ class MetricSpec:
 
     label: str
     kind: MetricKind
+
+
+@dataclass(frozen=True)
+class Insight:
+    key: str
+    label: str
+    percentile: float
+    kind: InsightKind
 
 
 def statistic_value(player: Player, key: str) -> float | None:
@@ -125,3 +134,32 @@ def scout_comparison(
     ]
     ranked.sort(key=lambda pair: pair[1])
     return ranked
+
+
+def generate_insights(
+    players: list[Player],
+    player: Player,
+    *,
+    high_threshold: float = 90.0,
+    low_threshold: float = 10.0,
+) -> list[Insight]:
+    """Percentile-based Insights for every Statistic `player` has, relative
+    to `players` (typically the Player's Position Group within the Season).
+
+    Rule-based only, no LLM involved: a Statistic at or above
+    `high_threshold` percentile is a "strength", at or below `low_threshold`
+    a "weakness". Sorted with the most extreme strengths first, then the
+    most extreme weaknesses.
+    """
+    insights = []
+    for stat in player.statistics:
+        pct = percentile(players, player, stat.key)
+        if pct is None:
+            continue
+        if pct >= high_threshold:
+            insights.append(Insight(key=stat.key, label=stat.label, percentile=pct, kind="strength"))
+        elif pct <= low_threshold:
+            insights.append(Insight(key=stat.key, label=stat.label, percentile=pct, kind="weakness"))
+
+    insights.sort(key=lambda i: -i.percentile if i.kind == "strength" else i.percentile)
+    return insights

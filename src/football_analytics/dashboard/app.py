@@ -18,11 +18,13 @@ from dotenv import load_dotenv
 from supabase import Client, create_client
 
 from football_analytics.analysis.metrics import (
+    Insight,
     MetricKind,
     MetricSpec,
     apply_minutes_floor,
     compute_metric,
     filter_by_position_group,
+    generate_insights,
     position_group,
     scout_comparison,
 )
@@ -99,6 +101,11 @@ def scout_comparison_dataframe(
     )
 
 
+def render_insight(insight: Insight) -> None:
+    icon = "🔼" if insight.kind == "strength" else "🔽"
+    st.write(f"{icon} **{insight.label}** — {insight.percentile:.0f}th percentile")
+
+
 def main() -> None:
     st.set_page_config(page_title="Player Analytics", layout="wide")
     st.title("Premier League 2025/26 — Players")
@@ -158,15 +165,29 @@ def main() -> None:
         fig.update_layout(yaxis={"categoryorder": "total ascending"})
         st.plotly_chart(fig, width="stretch")
 
-    st.header("Scout Comparison")
+    st.header("Player Profile")
     player_labels = {f"{p.name} ({p.team.name})": p for p in sorted(players, key=lambda p: p.name)}
-    reference_label = st.selectbox("Reference Player", list(player_labels))
+    reference_label = st.selectbox("Player", list(player_labels))
+    reference = player_labels[reference_label]
+
+    group = position_group(reference)
+    st.subheader(f"{reference.name} — {reference.team.name}")
+    st.caption(", ".join(pos.code for pos in reference.positions) or "No Position data")
+
+    insight_population = players if group is None else filter_by_position_group(players, group)
+    insights = generate_insights(insight_population, reference)
+    if not insights:
+        st.info("No notable Insights for this Player yet.")
+    else:
+        for insight in insights:
+            render_insight(insight)
+
+    st.header("Scout Comparison")
     restrict_group = st.checkbox("Restrict to reference Player's Position Group", value=True)
 
     if not specs:
         st.info("Select at least one Metric above to run a Scout Comparison.")
     else:
-        reference = player_labels[reference_label]
         candidates = apply_minutes_floor(players, minutes_floor)
         if not any(p.fotmob_id == reference.fotmob_id for p in candidates):
             candidates = [reference, *candidates]
