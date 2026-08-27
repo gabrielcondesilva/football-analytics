@@ -15,6 +15,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 from dotenv import load_dotenv
+from plotly.graph_objects import Figure
 from supabase import Client, create_client
 
 from football_analytics.analysis.metrics import (
@@ -30,6 +31,7 @@ from football_analytics.analysis.metrics import (
 )
 from football_analytics.domain.models import Player
 from football_analytics.persistence.player_queries import list_players
+from football_analytics.reports.player_report import build_player_report_pdf
 
 METRIC_KIND_BY_LABEL: dict[str, MetricKind] = {
     "Raw": "raw",
@@ -106,6 +108,26 @@ def render_insight(insight: Insight) -> None:
     st.write(f"{icon} **{insight.label}** — {insight.percentile:.0f}th percentile")
 
 
+def insights_chart(insights: list[Insight]) -> Figure:
+    df = pd.DataFrame(
+        [
+            {"Statistic": i.label, "Percentile": i.percentile, "Kind": i.kind.capitalize()}
+            for i in insights
+        ]
+    )
+    fig = px.bar(
+        df,
+        x="Percentile",
+        y="Statistic",
+        orientation="h",
+        color="Kind",
+        color_discrete_map={"Strength": "#2ca02c", "Weakness": "#d62728"},
+        range_x=[0, 100],
+    )
+    fig.update_layout(yaxis={"categoryorder": "total ascending"})
+    return fig
+
+
 def main() -> None:
     st.set_page_config(page_title="Player Analytics", layout="wide")
     st.title("Premier League 2025/26 — Players")
@@ -176,11 +198,23 @@ def main() -> None:
 
     insight_population = players if group is None else filter_by_position_group(players, group)
     insights = generate_insights(insight_population, reference)
+    chart_png = None
     if not insights:
         st.info("No notable Insights for this Player yet.")
     else:
         for insight in insights:
             render_insight(insight)
+        fig = insights_chart(insights)
+        st.plotly_chart(fig, width="stretch")
+        chart_png = fig.to_image(format="png")
+
+    pdf_bytes = build_player_report_pdf(reference, insights, chart_png)
+    st.download_button(
+        "Download Player Report (PDF)",
+        data=pdf_bytes,
+        file_name=f"{reference.name.replace(' ', '_')}_report.pdf",
+        mime="application/pdf",
+    )
 
     st.header("Scout Comparison")
     restrict_group = st.checkbox("Restrict to reference Player's Position Group", value=True)
