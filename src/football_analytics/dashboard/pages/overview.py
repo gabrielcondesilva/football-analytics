@@ -29,9 +29,11 @@ TABLE_SIZE = 10
 GRID_COLUMNS = 2
 
 KIND_DISPLAY_LABEL: dict[MetricKind, str] = {
-    "per_90": "Per-90",
-    "raw": "Per Season",
+    "per_90": "Por 90 min",
+    "raw": "Por Temporada",
 }
+
+ALL_POSITION_GROUPS = "Todos"
 
 
 def leaderboard_dataframe(
@@ -41,9 +43,9 @@ def leaderboard_dataframe(
     return pd.DataFrame(
         [
             {
-                "Name": player.name,
-                "Team": player.team.name,
-                "Positions": position_codes(player),
+                "Nome": player.name,
+                "Time": player.team.name,
+                "Posições": position_codes(player),
                 label: value,
             }
             for player, value in entries
@@ -51,12 +53,28 @@ def leaderboard_dataframe(
     )
 
 
+def value_column_config(df: pd.DataFrame, label: str, kind: MetricKind) -> dict:
+    """`st.dataframe` column_config for a leaderboard's value column.
+
+    Per-90 values are rates (minutes-scaled, or a Statistic already
+    expressed as a percent per `per_90()`), so they always render with two
+    decimal places. Per Season values are season totals and are typically
+    whole numbers (goals, tackles, ...) that already read fine unformatted;
+    only format them when the underlying data is itself fractional (e.g. a
+    percent-format Statistic shown as a season figure), so genuine counts
+    keep reading as plain integers.
+    """
+    if kind == "per_90" or (df[label] % 1 != 0).any():
+        return {label: st.column_config.NumberColumn(format="%.2f")}
+    return {}
+
+
 def main() -> None:
-    st.title("Overview")
+    st.title("Visão Geral")
 
     players = get_players()
     if not players:
-        st.warning("No players found. Has the ingestion pipeline been run yet?")
+        st.warning("Nenhum jogador encontrado. O pipeline de ingestão já foi executado?")
         return
 
     team_names = sorted({p.team.name for p in players})
@@ -66,22 +84,22 @@ def main() -> None:
     label_options = metric_label_options(players)
 
     with st.sidebar:
-        st.header("Filters")
-        per90_labels = st.multiselect("Metrics (Per-90)", sorted(label_options))
-        season_labels = st.multiselect("Metrics (Per Season)", sorted(label_options))
-        selected_teams = st.multiselect("Team", team_names)
-        selected_positions = st.multiselect("Position", position_code_options)
-        selected_group = st.selectbox("Position Group", ["All", *position_groups])
-        selected_leagues = st.multiselect("League", league_names)
-        minutes_floor = st.number_input("Minutes Floor", min_value=0, value=0, step=90)
+        st.header("Filtros")
+        per90_labels = st.multiselect("Métricas (Por 90 min)", sorted(label_options))
+        season_labels = st.multiselect("Métricas (Por Temporada)", sorted(label_options))
+        selected_teams = st.multiselect("Time", team_names)
+        selected_positions = st.multiselect("Posição", position_code_options)
+        selected_group = st.selectbox("Grupo de Posição", [ALL_POSITION_GROUPS, *position_groups])
+        selected_leagues = st.multiselect("Liga", league_names)
+        minutes_floor = st.number_input("Minutos Mínimos", min_value=0, value=0, step=90)
         st.multiselect(
-            "Age",
+            "Idade",
             [],
             disabled=True,
             help="Em breve — depende de dados de idade ainda não ingeridos.",
         )
         st.multiselect(
-            "Nationality",
+            "Nacionalidade",
             [],
             disabled=True,
             help="Em breve — depende de dados de nacionalidade ainda não ingeridos.",
@@ -94,7 +112,7 @@ def main() -> None:
         view_players = [
             p for p in view_players if any(pos.code in selected_positions for pos in p.positions)
         ]
-    if selected_group != "All":
+    if selected_group != ALL_POSITION_GROUPS:
         view_players = filter_by_position_group(view_players, selected_group)
     if selected_leagues:
         view_players = [p for p in view_players if p.league in selected_leagues]
@@ -117,9 +135,14 @@ def main() -> None:
                 st.subheader(f"{label} ({KIND_DISPLAY_LABEL[kind]})")
                 df = leaderboard_dataframe(view_players, key, label, kind)
                 if df.empty:
-                    st.info("No players have this Metric under the current filters.")
+                    st.info("Nenhum jogador possui essa métrica com os filtros atuais.")
                 else:
-                    st.dataframe(df, width="stretch", hide_index=True)
+                    st.dataframe(
+                        df,
+                        width="stretch",
+                        hide_index=True,
+                        column_config=value_column_config(df, label, kind),
+                    )
 
 
 main()
