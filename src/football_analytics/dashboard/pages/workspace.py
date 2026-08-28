@@ -1,12 +1,14 @@
-"""Player Workspace page: browse/filter Players, inspect a single Player's
-profile and Insights, and run a Scout Comparison — with PDF export for both.
+"""Player Analysis page (Análise de Jogadores): search a single Player, scope
+a Comparison Population by Position Group + Minutes Floor, show that
+Player's biographical card, and compare selected Metrics against the
+Comparison Population as either a Tercil-colored matrix or a percentile
+radar.
 
-Relocated from the dashboard's former single-page `app.py` as part of
-introducing multipage navigation; no functional changes.
-
-Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in the environment (see
-.env.example). Works with whatever Statistic categories have been ingested
-so far, since Team and Position(s) are current-state attributes.
+Full rebuild per .scratch/player-analysis-page/spec.md, tickets 03-05: shell/
+search/filters/card, Metrics multiselect + Por Temporada/Por 90 toggle +
+Tercil matrix, and the Matriz<->Radar toggle. The page's previous content
+(general leaderboard, Insights, Scout Comparison, PDF export) was removed
+per ADR 0003 — see docs/adr/0003-drop-scout-comparison-on-workspace-rebuild.md.
 """
 
 from __future__ import annotations
@@ -17,358 +19,274 @@ import streamlit as st
 from plotly.graph_objects import Figure
 
 from football_analytics.analysis.metrics import (
-    Insight,
     MetricKind,
     MetricSpec,
+    TercileBand,
     apply_minutes_floor,
     compute_metric,
     filter_by_position_group,
-    generate_insights,
     position_group,
-    scout_comparison,
+    tercile_band,
 )
 from football_analytics.dashboard.data import get_players
 from football_analytics.dashboard.shared import metric_label_options, position_codes
 from football_analytics.domain.models import Player
-from football_analytics.reports.player_report import build_player_report_pdf
-from football_analytics.reports.scout_comparison_report import (
-    build_scout_comparison_report_pdf,
-)
 
-METRIC_KIND_BY_LABEL: dict[str, MetricKind] = {
-    "Raw": "raw",
-    "Per-90": "per_90",
-    "Percentile": "percentile",
+ALL_POSITION_GROUPS = "Todos"
+NO_PLAYER_SELECTED = "Selecione um jogador…"
+
+LAST_PLAYER_KEY = "workspace_last_player_id"
+POSITION_GROUP_KEY = "workspace_position_group"
+
+_UNSET: object = object()
+"""Sentinel distinguishing "never synced" from "synced to no Player
+selected" (`None`) in `st.session_state`."""
+
+AVATAR_HEIGHT = 88
+
+VALUE_KIND_BY_LABEL: dict[str, MetricKind] = {"Por Temporada": "raw", "Por 90 min": "per_90"}
+VIEW_OPTIONS = ("Matriz", "Radar")
+
+SEQUENTIAL_BLUE = "#2a78d6"
+"""Default sequential hue from the project's dataviz skill (references/
+palette.md) — same tone used elsewhere in the app (Overview's leaderboards,
+before their removal). The radar is a single Player's own profile, not a
+good/bad status, so it stays on this one brand hue rather than the matrix's
+Tercil red/amber/green."""
+
+# Fixed, mode-invariant status colors from the project's dataviz skill
+# (references/palette.md) — never themed, so a tercile band reads the same
+# regardless of the app's light/dark mode. Text color is chosen per swatch
+# for contrast against that swatch itself (white on the two saturated/dark
+# hues, near-black on the lighter amber), not against the page surface.
+TERCILE_CELL_STYLE: dict[TercileBand, str] = {
+    "top": "background-color: #0ca30c; color: #ffffff;",
+    "middle": "background-color: #fab219; color: #0b0b0b;",
+    "bottom": "background-color: #d03b3b; color: #ffffff;",
 }
 
-LEADERBOARD_SIZE = 20
 
-# Palette from the project's dataviz skill (references/palette.md), validated
-# for colorblind-safety and light/dark contrast — see comments below for why
-# each slot is used where it is.
-SEQUENTIAL_BLUE = "#2a78d6"  # categorical slot 1 / default sequential hue
-STATUS_GOOD = "#0ca30c"  # fixed status color, mode-invariant
-STATUS_CRITICAL = "#d03b3b"  # fixed status color, mode-invariant
-MUTED_INK = "#898781"  # axis/label role, mode-invariant
-GRIDLINE_COLOR = "rgba(137, 135, 129, 0.35)"  # muted ink, hairline opacity
+def player_search_options(players: list[Player]) -> dict[str, Player]:
+    """Map "Name (Team)" display label to Player, sorted by name — the
+    embedded filter/options for the search selectbox."""
+    return {f"{p.name} ({p.team.name})": p for p in sorted(players, key=lambda p: p.name)}
 
 
-def to_dataframe(players: list[Player]) -> pd.DataFrame:
-    df = pd.DataFrame(
-        [
-            {
-                "Name": p.name,
-                "Team": p.team.name,
-                "Positions": position_codes(p),
-            }
-            for p in players
-        ]
-    )
-    return df.sort_values("Name", ignore_index=True)
+def bio_field(value: int | str | None) -> str:
+    """Display value for an optional biographical field: "-" until the
+    field is ingested (all of age/nationality/preferred_foot today)."""
+    return str(value) if value is not None else "-"
 
 
-def _format_metric_value(value: float, kind: MetricKind) -> str:
-    """Human-friendly label for a Metric value: whole numbers stay whole,
-    Percentiles never show decimals, everything else gets 2 decimals."""
-    if kind == "percentile" or float(value).is_integer():
-        return f"{value:.0f}"
-    return f"{value:.2f}"
+def sync_position_group_with_player(
+    selected_player: Player | None, position_groups: list[str]
+) -> None:
+    """Auto-fill the Position Group filter with the selected Player's group,
+    every time the *selected Player* changes — not on every rerun, so a
+    manual override of Position Group survives reruns but resets the next
+    time the Player changes.
+
+    Must run before the Position Group `st.selectbox` below is instantiated:
+    Streamlit only respects a `st.session_state[key]` write for a widget's
+    `key` when it happens earlier in the same script run.
+    """
+    current_player_id = selected_player.fotmob_id if selected_player else None
+    if st.session_state.get(LAST_PLAYER_KEY, _UNSET) == current_player_id:
+        return
+    st.session_state[LAST_PLAYER_KEY] = current_player_id
+    group = position_group(selected_player) if selected_player else None
+    st.session_state[POSITION_GROUP_KEY] = group if group in position_groups else ALL_POSITION_GROUPS
 
 
-def _bar_chart_height(n_rows: int) -> int:
-    """Enough height for `n_rows` horizontal bars to stay <=24px thick with
-    breathing room, without the chart card growing unbounded."""
-    return max(220, min(40 * n_rows + 80, 900))
-
-
-def leaderboard_dataframe(
-    reference_players: list[Player], view_players: list[Player], spec: MetricSpec
+def metric_matrix_dataframe(
+    comparison_population: list[Player], player: Player, specs: list[MetricSpec]
 ) -> pd.DataFrame:
+    """One row per selected Metric: its Value (per `spec.kind`) and its
+    Percentile within `comparison_population`. Percentile is always computed
+    regardless of `spec.kind` — the Percentual column never switches type
+    with the Por Temporada/Por 90 min toggle, only Valor does.
+
+    A Metric missing for this Player (or for the whole population) keeps its
+    row with a blank Valor/Percentual rather than being dropped, so every
+    Metric the user picked stays visible in the matrix.
+    """
     rows = []
-    for p in view_players:
-        value = compute_metric(reference_players, p, spec)
-        if value is not None:
-            rows.append(
-                {
-                    "Name": p.name,
-                    "Team": p.team.name,
-                    "Player": f"{p.name} · {p.team.name}",
-                    spec.label: value,
-                }
-            )
-    df = pd.DataFrame(rows).sort_values(spec.label, ascending=False).head(LEADERBOARD_SIZE)
-    return df
-
-
-def leaderboard_chart(df: pd.DataFrame, spec: MetricSpec, metric_kind: MetricKind) -> Figure:
-    """Top-N horizontal bar chart for one Metric.
-
-    Deliberately a single sequential hue rather than `color="Team"`: with the
-    default (unfiltered) view, a Top 20 leaderboard routinely spans well over
-    the palette's 8-color categorical ceiling (~20 Premier League teams), so
-    coloring by Team would mean cycling generated hues — the dataviz skill's
-    #1 flagged anti-pattern, and no longer colorblind-safe. The ranking is a
-    magnitude comparison (the chart's actual job), so Team identity is
-    preserved as a direct label on the y-axis and in the hover instead of
-    burning the color channel on an unsafe encoding.
-    """
-    value_col = spec.label
-    text = [_format_metric_value(v, metric_kind) for v in df[value_col]]
-    fig = px.bar(
-        df,
-        x=value_col,
-        y="Player",
-        orientation="h",
-        color_discrete_sequence=[SEQUENTIAL_BLUE],
-        text=text,
-    )
-    fig.update_traces(
-        textposition="outside",
-        cliponaxis=False,
-        marker_line_width=0,
-        hovertemplate=f"%{{y}}<br>{value_col}: %{{text}}<extra></extra>",
-    )
-    fig.update_layout(
-        yaxis={"categoryorder": "total ascending", "title": None},
-        xaxis={"gridcolor": GRIDLINE_COLOR, "title": value_col},
-        bargap=0.35,
-        height=_bar_chart_height(len(df)),
-        margin={"l": 10, "r": 60, "t": 10, "b": 10},
-    )
-    if metric_kind == "percentile":
-        fig.update_xaxes(range=[0, 100])
-    return fig
-
-
-def scout_comparison_dataframe(
-    results: list[tuple[Player, float]],
-) -> pd.DataFrame:
-    return pd.DataFrame(
-        [
+    for spec in specs:
+        percentile_spec = MetricSpec(key=spec.key, label=spec.label, kind="percentile")
+        rows.append(
             {
-                "Name": p.name,
-                "Team": p.team.name,
-                "Positions": position_codes(p),
-                "Distance": distance,
+                "Métrica": spec.label,
+                "Valor": compute_metric(comparison_population, player, spec),
+                "Percentual": compute_metric(comparison_population, player, percentile_spec),
             }
-            for p, distance in results
-        ]
-    )
+        )
+    return pd.DataFrame(rows, columns=["Métrica", "Valor", "Percentual"])
 
 
-def scout_comparison_chart(df: pd.DataFrame) -> Figure:
-    """Horizontal bar of Distance-to-reference for the ranked candidates.
+def style_percentile_cell(value: float | None) -> str:
+    """Pandas Styler cell function: Tercil-band background/text color for
+    one Percentual cell, no style for a missing value."""
+    if value is None or pd.isna(value):
+        return ""
+    return TERCILE_CELL_STYLE[tercile_band(value)]
 
-    Same sequential blue and "value at the tip" treatment as the Metric
-    leaderboards, for a consistent visual system. Distance is lower-is-better
-    (closer match), the opposite of every other ranked chart in this app, so
-    this is the one place that orders bars with "total descending" — that is
-    what puts the best match at the top here, matching every other
-    leaderboard's "best result on top" convention rather than breaking it.
+
+def matrix_column_config(df: pd.DataFrame, kind: MetricKind) -> dict:
+    """`st.dataframe` column_config for the matrix's Valor/Percentual
+    columns. Valor follows the same convention as the Overview leaderboards
+    (`leaderboard_dataframe`'s sibling `value_column_config`): Per-90 rates
+    always show two decimals; Por Temporada totals stay whole unless the
+    underlying data is itself fractional. Percentual is always a whole
+    percentage, independent of the toggle.
     """
-    chart_df = df.assign(Player=df["Name"] + " · " + df["Team"])
-    text = [f"{v:.2f}" for v in chart_df["Distance"]]
-    fig = px.bar(
-        chart_df,
-        x="Distance",
-        y="Player",
-        orientation="h",
-        color_discrete_sequence=[SEQUENTIAL_BLUE],
-        text=text,
-    )
+    config: dict = {"Percentual": st.column_config.NumberColumn(format="%.0f%%")}
+    if kind == "per_90" or (df["Valor"].dropna() % 1 != 0).any():
+        config["Valor"] = st.column_config.NumberColumn(format="%.2f")
+    return config
+
+
+def metric_radar_chart(matrix_df: pd.DataFrame) -> Figure:
+    """Percentile radar for the same rows already computed by
+    `metric_matrix_dataframe` — one axis per Metric, r = Percentual, always
+    the percentile regardless of the matrix's Por Temporada/Por 90 toggle
+    (that toggle only ever changes the matrix's Valor column). Single brand
+    hue with a soft fill, no Tercil red/amber/green — that scheme is
+    reserved for the matrix's cell-level status color, not a Player's own
+    shape here. A Metric missing its Percentual (statistic not available for
+    this Player) plots as 0 rather than breaking the polygon.
+    """
+    radar_df = matrix_df[["Métrica", "Percentual"]].fillna(0)
+    fig = px.line_polar(radar_df, r="Percentual", theta="Métrica", line_close=True, range_r=[0, 100])
     fig.update_traces(
-        textposition="outside",
-        cliponaxis=False,
-        marker_line_width=0,
-        hovertemplate="%{y}<br>Distance: %{text}<extra></extra>",
-    )
-    fig.update_layout(
-        yaxis={"categoryorder": "total descending", "title": None},
-        xaxis={"gridcolor": GRIDLINE_COLOR, "title": "Distance (lower = more similar)"},
-        bargap=0.35,
-        height=_bar_chart_height(len(chart_df)),
-        margin={"l": 10, "r": 60, "t": 10, "b": 10},
+        line_color=SEQUENTIAL_BLUE,
+        fill="toself",
+        fillcolor="rgba(42, 120, 214, 0.25)",
+        hovertemplate="%{theta}: %{r:.0f}%<extra></extra>",
     )
     return fig
 
 
-def render_insight(insight: Insight) -> None:
-    icon = "🔼" if insight.kind == "strength" else "🔽"
-    st.write(f"{icon} **{insight.label}** — {insight.percentile:.0f}th percentile")
+def render_player_card(player: Player) -> None:
+    """Player identity card: avatar placeholder, name, positions, Team, and
+    the (currently always empty) biographical fields."""
+    with st.container(border=True):
+        avatar_col, info_col = st.columns([1, 4], vertical_alignment="center")
+        with (
+            avatar_col,
+            st.container(
+                border=True,
+                height=AVATAR_HEIGHT,
+                horizontal_alignment="center",
+                vertical_alignment="center",
+            ),
+        ):
+            st.markdown(":material/person:", text_alignment="center")
+        with info_col:
+            st.subheader(player.name)
+            st.caption(f"{position_codes(player) or 'Sem posição registrada'} · {player.team.name}")
+
+        bio_cols = st.columns(3)
+        with bio_cols[0]:
+            st.metric("Idade", bio_field(player.age))
+        with bio_cols[1]:
+            st.metric("Nacionalidade", bio_field(player.nationality))
+        with bio_cols[2]:
+            st.metric("Pé preferido", bio_field(player.preferred_foot))
 
 
-def insights_chart(insights: list[Insight]) -> Figure:
-    df = pd.DataFrame(
-        [
-            {"Statistic": i.label, "Percentile": i.percentile, "Kind": i.kind.capitalize()}
-            for i in insights
-        ]
-    )
-    text = [f"{v:.0f}" for v in df["Percentile"]]
-    fig = px.bar(
-        df,
-        x="Percentile",
-        y="Statistic",
-        orientation="h",
-        color="Kind",
-        # Strength/Weakness is a good/bad status, not a generic identity —
-        # use the dataviz skill's fixed, mode-invariant status colors rather
-        # than the old unvalidated green/red.
-        color_discrete_map={"Strength": STATUS_GOOD, "Weakness": STATUS_CRITICAL},
-        range_x=[0, 100],
-        text=text,
-    )
-    fig.update_traces(textposition="outside", cliponaxis=False, marker_line_width=0)
-    # 50th percentile is the neutral reference every bar is measured against —
-    # a dashed threshold line earns its place here (unlike a plain gridline).
-    fig.add_vline(
-        x=50,
-        line_width=1,
-        line_dash="dash",
-        line_color=MUTED_INK,
-        annotation_text="Median",
-        annotation_position="top",
-        annotation_font_color=MUTED_INK,
-    )
-    fig.update_layout(
-        yaxis={"categoryorder": "total ascending", "title": None},
-        xaxis={"gridcolor": GRIDLINE_COLOR, "title": "Percentile"},
-        bargap=0.35,
-        height=_bar_chart_height(len(df)),
-        legend_title_text="",
-        margin={"l": 10, "r": 60, "t": 30, "b": 10},
-    )
-    return fig
+def render_metrics_section(
+    players: list[Player], comparison_population: list[Player], player: Player
+) -> None:
+    """Metrics multiselect + Por Temporada/Por 90 toggle, then either the
+    Tercil-colored matrix or a percentile radar for the same selected
+    Metrics (Matriz<->Radar toggle) — or an instruction message while
+    nothing is selected yet. Lives in the column beside `render_player_card`,
+    per Q11 of the grill that originated this spec — card and Metrics side
+    by side, not stacked. Switching Matriz<->Radar, like switching Por
+    Temporada/Por 90, never resets the Metrics multiselect: each widget's
+    Streamlit-managed state is independent of the others, so no explicit
+    `st.session_state` bookkeeping is needed here (unlike Position Group in
+    `sync_position_group_with_player`, which has to survive Player changes).
+    """
+    st.subheader("Métricas")
+    label_options = metric_label_options(players)
+    metric_col, toggle_col = st.columns([3, 1])
+    with metric_col:
+        selected_metric_labels = st.multiselect("Métricas", sorted(label_options))
+    with toggle_col:
+        value_kind_label = st.radio("Tipo de Valor", list(VALUE_KIND_BY_LABEL), horizontal=True)
+
+    if not selected_metric_labels:
+        st.info("Selecione ao menos uma Métrica para ver a matriz ou o radar de comparação.")
+        return
+
+    view = st.radio("Visualização", VIEW_OPTIONS, horizontal=True)
+
+    value_kind = VALUE_KIND_BY_LABEL[value_kind_label]
+    specs = [
+        MetricSpec(key=label_options[label], label=label, kind=value_kind)
+        for label in selected_metric_labels
+    ]
+    matrix_df = metric_matrix_dataframe(comparison_population, player, specs)
+
+    if view == "Radar":
+        st.plotly_chart(metric_radar_chart(matrix_df), width="stretch")
+    else:
+        styled_matrix = matrix_df.style.map(style_percentile_cell, subset=["Percentual"])
+        st.dataframe(
+            styled_matrix,
+            width="stretch",
+            hide_index=True,
+            column_config=matrix_column_config(matrix_df, value_kind),
+        )
 
 
 def main() -> None:
-    st.title("Premier League 2025/26 — Players")
+    st.title("Análise de Jogadores")
 
     players = get_players()
     if not players:
-        st.warning("No players found. Has the ingestion pipeline been run yet?")
+        st.warning("Nenhum jogador encontrado. O pipeline de ingestão já foi executado?")
         return
 
-    team_names = sorted({p.team.name for p in players})
-    position_code_options = sorted({pos.code for p in players for pos in p.positions})
     position_groups = sorted({g for p in players if (g := position_group(p)) is not None})
-    label_options = metric_label_options(players)
+    search_options = player_search_options(players)
 
     with st.sidebar:
-        st.header("Filters")
-        selected_teams = st.multiselect("Team", team_names)
-        selected_positions = st.multiselect("Position", position_code_options)
-        selected_group = st.selectbox("Position Group", ["All", *position_groups])
-        minutes_floor = st.number_input("Minutes Floor", min_value=0, value=0, step=90)
-
-        st.header("Metrics")
-        metric_kind_label = st.radio("Metric type", list(METRIC_KIND_BY_LABEL), horizontal=True)
-        selected_metric_labels = st.multiselect("Metrics", sorted(label_options))
-
-    reference_players = players if selected_group == "All" else filter_by_position_group(
-        players, selected_group
-    )
-
-    view_players = players
-    if selected_teams:
-        view_players = [p for p in view_players if p.team.name in selected_teams]
-    if selected_positions:
-        view_players = [
-            p for p in view_players if any(pos.code in selected_positions for pos in p.positions)
-        ]
-    if selected_group != "All":
-        view_players = filter_by_position_group(view_players, selected_group)
-    view_players = apply_minutes_floor(view_players, minutes_floor)
-
-    st.caption(f"{len(view_players)} of {len(players)} players")
-    st.dataframe(to_dataframe(view_players), width="stretch", hide_index=True)
-
-    metric_kind = METRIC_KIND_BY_LABEL[metric_kind_label]
-    specs = [
-        MetricSpec(key=label_options[label], label=label, kind=metric_kind)
-        for label in selected_metric_labels
-    ]
-
-    for spec in specs:
-        df = leaderboard_dataframe(reference_players, view_players, spec)
-        st.subheader(f"{spec.label} ({metric_kind_label})")
-        if df.empty:
-            st.info("No players have this Metric under the current filters.")
-            continue
-        leader = df.iloc[0]
-        leader_value = _format_metric_value(leader[spec.label], metric_kind)
-        st.caption(f"Leads: **{leader['Name']}** ({leader['Team']}) — {leader_value}")
-        fig = leaderboard_chart(df, spec, metric_kind)
-        st.plotly_chart(fig, width="stretch")
-
-    st.header("Player Profile")
-    player_labels = {f"{p.name} ({p.team.name})": p for p in sorted(players, key=lambda p: p.name)}
-    reference_label = st.selectbox("Player", list(player_labels))
-    reference = player_labels[reference_label]
-
-    group = position_group(reference)
-    st.subheader(f"{reference.name} — {reference.team.name}")
-    st.caption(position_codes(reference) or "No Position data")
-
-    insight_population = players if group is None else filter_by_position_group(players, group)
-    insights = generate_insights(insight_population, reference)
-    chart_png = None
-    if not insights:
-        st.info("No notable Insights for this Player yet.")
-    else:
-        for insight in insights:
-            render_insight(insight)
-        fig = insights_chart(insights)
-        st.plotly_chart(fig, width="stretch")
-        chart_png = fig.to_image(format="png")
-
-    pdf_bytes = build_player_report_pdf(reference, insights, chart_png)
-    st.download_button(
-        "Download Player Report (PDF)",
-        data=pdf_bytes,
-        file_name=f"{reference.name.replace(' ', '_')}_report.pdf",
-        mime="application/pdf",
-    )
-
-    st.header("Scout Comparison")
-    restrict_group = st.checkbox("Restrict to reference Player's Position Group", value=True)
-
-    if not specs:
-        st.info("Select at least one Metric above to run a Scout Comparison.")
-    else:
-        candidates = apply_minutes_floor(players, minutes_floor)
-        if not any(p.fotmob_id == reference.fotmob_id for p in candidates):
-            candidates = [reference, *candidates]
-
-        results = scout_comparison(
-            candidates, reference, specs, restrict_to_position_group=restrict_group
+        st.header("Filtros")
+        search_label = st.selectbox(
+            "Buscar Jogador",
+            [NO_PLAYER_SELECTED, *search_options],
+            key="workspace_player_search",
         )
-        if not results:
-            st.info("No comparable Players found under the current filters.")
-        else:
-            top_results = results[:LEADERBOARD_SIZE]
-            comparison_df = scout_comparison_dataframe(top_results)
-            closest = comparison_df.iloc[0]
-            st.caption(
-                f"Closest match: **{closest['Name']}** ({closest['Team']}) — "
-                f"distance {closest['Distance']:.2f} across {len(specs)} "
-                f"metric{'s' if len(specs) != 1 else ''}"
-            )
-            st.plotly_chart(scout_comparison_chart(comparison_df), width="stretch")
-            st.dataframe(
-                comparison_df,
-                width="stretch",
-                hide_index=True,
-            )
-            scout_pdf_bytes = build_scout_comparison_report_pdf(
-                reference, top_results, specs, candidates
-            )
-            st.download_button(
-                "Download Scout Comparison Report (PDF)",
-                data=scout_pdf_bytes,
-                file_name=f"{reference.name.replace(' ', '_')}_scout_comparison.pdf",
-                mime="application/pdf",
-            )
+        selected_player = search_options.get(search_label)
+
+        sync_position_group_with_player(selected_player, position_groups)
+        selected_group = st.selectbox(
+            "Grupo de Posição",
+            [ALL_POSITION_GROUPS, *position_groups],
+            key=POSITION_GROUP_KEY,
+        )
+        minutes_floor = st.number_input("Minutos Mínimos", min_value=0, value=0, step=90)
+
+    if selected_player is None:
+        st.info("Busque um jogador na barra lateral para começar a análise.")
+        return
+
+    comparison_population = (
+        players if selected_group == ALL_POSITION_GROUPS else filter_by_position_group(players, selected_group)
+    )
+    comparison_population = apply_minutes_floor(comparison_population, minutes_floor)
+
+    card_col, metrics_col = st.columns([1, 2])
+    with card_col:
+        render_player_card(selected_player)
+        st.caption(
+            f"População de comparação: {len(comparison_population)} jogador(es) · "
+            f"Grupo de Posição: {selected_group} · Minutos mínimos: {int(minutes_floor)}"
+        )
+    with metrics_col:
+        render_metrics_section(players, comparison_population, selected_player)
 
 
 main()

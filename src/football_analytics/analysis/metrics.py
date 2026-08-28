@@ -14,7 +14,7 @@ from football_analytics.domain.models import Player
 MINUTES_PLAYED_KEY = "minutes_played"
 
 MetricKind = Literal["raw", "per_90", "percentile"]
-InsightKind = Literal["strength", "weakness"]
+TercileBand = Literal["bottom", "middle", "top"]
 
 
 @dataclass(frozen=True)
@@ -24,14 +24,6 @@ class MetricSpec:
 
     label: str
     kind: MetricKind
-
-
-@dataclass(frozen=True)
-class Insight:
-    key: str
-    label: str
-    percentile: float
-    kind: InsightKind
 
 
 def statistic_value(player: Player, key: str) -> float | None:
@@ -84,6 +76,16 @@ def percentile(players: list[Player], player: Player, key: str) -> float | None:
     return 100 * sum(1 for v in peer_values if v <= target) / len(peer_values)
 
 
+def tercile_band(value: float) -> TercileBand:
+    """Classify a percentile (0-100) into one of three equal-width bands:
+    "bottom" (0-33), "middle" (33-67), or "top" (67-100)."""
+    if value < 33:
+        return "bottom"
+    if value < 67:
+        return "middle"
+    return "top"
+
+
 def compute_metric(players: list[Player], player: Player, spec: MetricSpec) -> float | None:
     """Compute a single Metric's value for `player`.
 
@@ -111,80 +113,3 @@ def top_metric_leaderboard(
     scored = [(p, v) for p in players if (v := compute_metric(players, p, spec)) is not None]
     return sorted(scored, key=lambda pv: pv[1], reverse=True)[:size]
 
-
-def scout_comparison(
-    players: list[Player],
-    reference: Player,
-    specs: list[MetricSpec],
-    *,
-    restrict_to_position_group: bool = True,
-) -> list[tuple[Player, float]]:
-    """Rank `players` by similarity to `reference` across `specs`, weighted
-    equally, excluding `reference` itself.
-
-    Each Metric is z-score normalized across the candidate pool (plus the
-    reference) before combining, so Metrics on different scales contribute
-    equally to the resulting distance. `players` should already reflect the
-    current Minutes Floor - this function only handles the Position Group
-    restriction and the ranking itself.
-
-    Returns (player, distance) pairs sorted ascending by distance (most
-    similar first).
-    """
-    pool = [p for p in players if p.fotmob_id != reference.fotmob_id]
-    if restrict_to_position_group:
-        ref_group = position_group(reference)
-        pool = [p for p in pool if position_group(p) == ref_group]
-    if not pool or not specs:
-        return []
-
-    all_players = [reference, *pool]
-    normalized: dict[int, list[float]] = {p.fotmob_id: [] for p in all_players}
-
-    for spec in specs:
-        raw_values = {p.fotmob_id: compute_metric(all_players, p, spec) for p in all_players}
-        known = [v for v in raw_values.values() if v is not None]
-        mean = sum(known) / len(known) if known else 0.0
-        variance = sum((v - mean) ** 2 for v in known) / len(known) if known else 0.0
-        std = variance**0.5
-        for p in all_players:
-            value = raw_values[p.fotmob_id]
-            z = 0.0 if value is None or std == 0 else (value - mean) / std
-            normalized[p.fotmob_id].append(z)
-
-    ref_vector = normalized[reference.fotmob_id]
-    ranked = [
-        (p, sum((a - b) ** 2 for a, b in zip(ref_vector, normalized[p.fotmob_id])) ** 0.5)
-        for p in pool
-    ]
-    ranked.sort(key=lambda pair: pair[1])
-    return ranked
-
-
-def generate_insights(
-    players: list[Player],
-    player: Player,
-    *,
-    high_threshold: float = 90.0,
-    low_threshold: float = 10.0,
-) -> list[Insight]:
-    """Percentile-based Insights for every Statistic `player` has, relative
-    to `players` (typically the Player's Position Group within the Season).
-
-    Rule-based only, no LLM involved: a Statistic at or above
-    `high_threshold` percentile is a "strength", at or below `low_threshold`
-    a "weakness". Sorted with the most extreme strengths first, then the
-    most extreme weaknesses.
-    """
-    insights = []
-    for stat in player.statistics:
-        pct = percentile(players, player, stat.key)
-        if pct is None:
-            continue
-        if pct >= high_threshold:
-            insights.append(Insight(key=stat.key, label=stat.label, percentile=pct, kind="strength"))
-        elif pct <= low_threshold:
-            insights.append(Insight(key=stat.key, label=stat.label, percentile=pct, kind="weakness"))
-
-    insights.sort(key=lambda i: -i.percentile if i.kind == "strength" else i.percentile)
-    return insights

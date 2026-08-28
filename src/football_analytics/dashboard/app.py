@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import streamlit as st
 
-st.set_page_config(page_title="Player Analytics", layout="wide")
+st.set_page_config(page_title="Análise de Jogadores", layout="wide")
 
-overview_page = st.Page("pages/overview.py", title="Overview", icon="📊", default=True)
-workspace_page = st.Page("pages/workspace.py", title="Player Workspace", icon="🔍")
+overview_page = st.Page("pages/overview.py", title="Visão Geral", icon="📊", default=True)
+workspace_page = st.Page("pages/workspace.py", title="Análise de Jogadores", icon="👤")
 
 navigation = st.navigation([overview_page, workspace_page])
 navigation.run()

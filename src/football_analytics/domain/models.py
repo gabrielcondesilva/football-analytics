@@ -53,6 +53,13 @@ class Player:
     """Name of the League this Player's Statistics were captured under (via
     their latest Snapshot's Season). None when no Snapshot exists yet."""
 
+    age: int | None = None
+    nationality: str | None = None
+    preferred_foot: str | None = None
+    photo_url: str | None = None
+    """Biographical attributes, sourced from FotMob's playerData. None until
+    ingestion extracts them."""
+
 
 @dataclass(frozen=True)
 class Snapshot:

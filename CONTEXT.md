@@ -19,7 +19,7 @@ Entidade de referência mínima (nome, escudo) à qual um Player pertence. Não 
 _Avoid_: Club, Squad.
 
 **Player**:
-Um jogador individual com Statistics e Metrics agregadas por Season. É a unidade central de comparação e scouting do projeto.
+Um jogador individual com Statistics e Metrics agregadas por Season, além de atributos biográficos (idade, nacionalidade, pé preferido) quando disponíveis. É a unidade central de comparação e scouting do projeto.
 _Avoid_: Athlete, atleta.
 
 **Position**:
@@ -27,7 +27,7 @@ Um papel que um Player pode ocupar em campo (ex: zagueiro, lateral). Um Player p
 _Avoid_: Role.
 
 **Position Group**:
-Classificação mais ampla de Positions (ex: defensores, meio-campistas, atacantes), usada para restringir Scout Comparisons a jogadores comparáveis por padrão.
+Classificação mais ampla de Positions (ex: defensores, meio-campistas, atacantes), usada por padrão para escopar a População de Comparação de um Player a jogadores comparáveis.
 
 ### Estatísticas e métricas
 
@@ -36,11 +36,18 @@ Um valor bruto coletado do FotMob para um Player em uma Season (ex: total de gol
 _Avoid_: Metric, stat, número.
 
 **Metric**:
-Qualquer valor usado para comparação ou visualização — pode ser uma Statistic bruta ou um valor derivado dela (por-90, percentil, z-score). É o que o usuário escolhe na sidebar do dashboard.
+Qualquer valor usado para comparação ou visualização — pode ser uma Statistic bruta ou um valor derivado dela (por-90, percentil). É o que o usuário escolhe na sidebar do dashboard.
 _Avoid_: Stat, KPI.
 
+**População de Comparação**:
+A população de referência usada para calcular o percentil de um Player em uma Metric. Cada tela do dashboard escopa essa população com seus próprios filtros — ex.: a Análise de Jogadores escopa por Position Group (do próprio Player) e Minutes Floor, sem usar Team/League.
+_Avoid_: Peer group, referência, população de referência.
+
 **Quartil**:
-A faixa de 25 pontos percentuais em que o percentil de uma Metric do Player se encontra em relação à população de referência (Q1 = 0–25, Q2 = 25–50, Q3 = 50–75, Q4 = 75–100). Derivado do percentil já calculado, não é um cálculo independente.
+A faixa de 25 pontos percentuais em que o percentil de uma Metric do Player se encontra em relação à População de Comparação (Q1 = 0–25, Q2 = 25–50, Q3 = 50–75, Q4 = 75–100). Derivado do percentil já calculado, não é um cálculo independente. Ainda não tem uso implementado no app — reservado para uma visualização futura, distinto do Tercil.
+
+**Tercil**:
+A faixa de aproximadamente 33 pontos percentuais em que o percentil de uma Metric do Player se encontra em relação à População de Comparação (pior terço = 0–33, terço médio = 33–67, melhor terço = 67–100). Usado para classificar visualmente (vermelho/amarelo/verde) o desempenho relativo do Player nas Metrics escolhidas na Análise de Jogadores. Derivado do percentil já calculado, não é um cálculo independente, e coexiste com o Quartil como um esquema de faixas separado, não um substituto.
 
 **Snapshot**:
 Uma captura datada das Statistics de um Player, feita em um momento do scraping. Permite múltiplos Snapshots por Player-Season ao longo do tempo, mesmo que hoje só exista um scraping único por Season.
@@ -48,17 +55,3 @@ _Avoid_: Version, scrape, coleta.
 
 **Minutes Floor**:
 O piso mínimo de minutos jogados que um Player precisa atingir para entrar em comparações e rankings, evitando distorção por amostra pequena. Ajustável pelo usuário.
-
-### Scouting e saída
-
-**Scout Comparison**:
-Um ranking de Players similares a um Player de referência, calculado a partir de um conjunto de Metrics escolhidas pelo usuário (peso igual entre elas), restrito por padrão ao mesmo Position Group e filtrado pelo Minutes Floor.
-_Avoid_: Scout Report, replacement search, busca de substituto.
-
-**Insight**:
-Uma observação gerada automaticamente sobre as Metrics de um Player em relação aos percentis da League (baseada em regras, não gerada por LLM).
-_Avoid_: Recommendation, recomendação.
-
-**Report**:
-Um documento em PDF exportável, contendo o perfil de um único Player ou uma Scout Comparison entre Players, destinado a ser enviado a um treinador.
-_Avoid_: Export, scout report.

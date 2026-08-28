@@ -1,17 +1,13 @@
-import pytest
-
 from football_analytics.analysis.metrics import (
-    Insight,
     MetricSpec,
     apply_minutes_floor,
     compute_metric,
     filter_by_position_group,
-    generate_insights,
     per_90,
     percentile,
     position_group,
-    scout_comparison,
     statistic_value,
+    tercile_band,
     top_metric_leaderboard,
 )
 from football_analytics.domain.models import Player, Position, Statistic, Team
@@ -159,142 +155,32 @@ def test_compute_metric_dispatches_to_percentile():
     assert compute_metric([low, high], high, spec) == 100.0
 
 
-def test_scout_comparison_excludes_the_reference_player_from_the_results():
-    reference = make_player(1, "Reference", "Forward", goals=5.0)
-    other = make_player(2, "Other", "Forward", goals=5.0)
-    specs = [MetricSpec(key="goals", label="Goals", kind="raw")]
-
-    results = scout_comparison([reference, other], reference, specs)
-
-    assert [p for p, _ in results] == [other]
+def test_tercile_band_returns_bottom_at_the_lowest_percentile():
+    assert tercile_band(0.0) == "bottom"
 
 
-def test_scout_comparison_ranks_the_closest_match_first():
-    reference = make_player(1, "Reference", "Forward", goals=10.0, assists=5.0)
-    close = make_player(2, "Close", "Forward", goals=9.0, assists=5.0)
-    far = make_player(3, "Far", "Forward", goals=1.0, assists=0.0)
-    specs = [
-        MetricSpec(key="goals", label="Goals", kind="raw"),
-        MetricSpec(key="assists", label="Assists", kind="raw"),
-    ]
-
-    results = scout_comparison([reference, close, far], reference, specs)
-
-    assert [p.name for p, _ in results] == ["Close", "Far"]
+def test_tercile_band_returns_bottom_just_below_the_first_boundary():
+    assert tercile_band(32.9) == "bottom"
 
 
-def test_scout_comparison_restricts_to_the_reference_position_group_by_default():
-    reference = make_player(1, "Reference", "Forward", goals=5.0)
-    same_group = make_player(2, "SameGroup", "Forward", goals=5.0)
-    other_group = make_player(3, "OtherGroup", "Defender", goals=5.0)
-    specs = [MetricSpec(key="goals", label="Goals", kind="raw")]
-
-    results = scout_comparison([reference, same_group, other_group], reference, specs)
-
-    assert [p.name for p, _ in results] == ["SameGroup"]
+def test_tercile_band_returns_middle_at_the_first_boundary():
+    assert tercile_band(33.0) == "middle"
 
 
-def test_scout_comparison_can_disable_the_position_group_restriction():
-    reference = make_player(1, "Reference", "Forward", goals=5.0)
-    other_group = make_player(2, "OtherGroup", "Defender", goals=5.0)
-    specs = [MetricSpec(key="goals", label="Goals", kind="raw")]
-
-    results = scout_comparison(
-        [reference, other_group], reference, specs, restrict_to_position_group=False
-    )
-
-    assert [p.name for p, _ in results] == ["OtherGroup"]
+def test_tercile_band_returns_middle_between_the_boundaries():
+    assert tercile_band(50.0) == "middle"
 
 
-def test_scout_comparison_weighs_metrics_equally_regardless_of_scale():
-    # "budget" spans millions, "rating" spans single digits. Without z-score
-    # normalization, the huge-scale budget difference would swamp the
-    # distance calculation. Each candidate matches the reference exactly on
-    # one Metric and diverges on the other, in a perfectly symmetric pattern
-    # - equal weighting must make both candidates equidistant regardless of
-    # which Metric's raw scale is larger.
-    reference = make_player(1, "Reference", "Forward", budget=1_000_000.0, rating=100.0)
-    similar_budget = make_player(2, "SimilarBudget", "Forward", budget=1_000_000.0, rating=0.0)
-    similar_rating = make_player(3, "SimilarRating", "Forward", budget=0.0, rating=100.0)
-    specs = [
-        MetricSpec(key="budget", label="Budget", kind="raw"),
-        MetricSpec(key="rating", label="Rating", kind="raw"),
-    ]
-
-    results = scout_comparison([reference, similar_budget, similar_rating], reference, specs)
-
-    distances = {p.name: d for p, d in results}
-    assert distances["SimilarBudget"] == pytest.approx(distances["SimilarRating"])
+def test_tercile_band_returns_middle_just_below_the_second_boundary():
+    assert tercile_band(66.9) == "middle"
 
 
-def test_scout_comparison_returns_empty_list_when_no_candidates_remain():
-    reference = make_player(1, "Reference", "Forward", goals=5.0)
-    specs = [MetricSpec(key="goals", label="Goals", kind="raw")]
-
-    assert scout_comparison([reference], reference, specs) == []
+def test_tercile_band_returns_top_at_the_second_boundary():
+    assert tercile_band(67.0) == "top"
 
 
-def make_population(size: int, group: str, key: str) -> list[Player]:
-    return [make_player(i, f"Player{i}", group, **{key: float(i)}) for i in range(1, size + 1)]
-
-
-def test_generate_insights_flags_a_statistic_above_the_high_threshold_as_a_strength():
-    population = make_population(10, "Forward", "goals")
-    top_scorer = population[-1]
-
-    insights = generate_insights(population, top_scorer)
-
-    assert insights == [Insight(key="goals", label="goals", percentile=100.0, kind="strength")]
-
-
-def test_generate_insights_flags_a_statistic_at_or_below_the_low_threshold_as_a_weakness():
-    population = make_population(10, "Forward", "goals")
-    bottom_scorer = population[0]
-
-    insights = generate_insights(population, bottom_scorer)
-
-    assert insights == [Insight(key="goals", label="goals", percentile=10.0, kind="weakness")]
-
-
-def test_generate_insights_ignores_a_statistic_in_the_middle_of_the_pack():
-    population = make_population(10, "Forward", "goals")
-    middling = population[4]  # 50th percentile
-
-    insights = generate_insights(population, middling)
-
-    assert insights == []
-
-
-def test_generate_insights_respects_custom_thresholds():
-    population = make_population(10, "Forward", "goals")
-    middling = population[4]  # 50th percentile
-
-    insights = generate_insights(population, middling, high_threshold=50.0, low_threshold=50.0)
-
-    assert insights == [Insight(key="goals", label="goals", percentile=50.0, kind="strength")]
-
-
-def test_generate_insights_sorts_strengths_before_weaknesses_by_extremity():
-    target = make_player(1, "Target", "Forward", goals=10.0, assists=1.0)
-    peers = [
-        make_player(i, f"Peer{i}", "Forward", goals=float(i - 1), assists=float(i))
-        for i in range(2, 11)
-    ]
-    population = [target, *peers]
-
-    insights = generate_insights(population, target)
-
-    assert [i.key for i in insights] == ["goals", "assists"]
-    assert insights[0].kind == "strength"
-    assert insights[1].kind == "weakness"
-
-
-def test_generate_insights_skips_statistics_with_no_percentile():
-    player = make_player(1, "Player", "Forward", goals=5.0)
-
-    insights = generate_insights([], player)
-
-    assert insights == []
+def test_tercile_band_returns_top_at_the_highest_percentile():
+    assert tercile_band(100.0) == "top"
 
 
 def test_top_metric_leaderboard_ranks_players_by_per_90_value_descending_by_default():
