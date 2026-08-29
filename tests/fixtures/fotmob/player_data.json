@@ -1,6 +1,29 @@
 {
   "id": 961995,
   "name": "Bukayo Saka",
+  "playerInformation": [
+    {
+      "value": { "numberValue": 183, "fallback": "183 cm" },
+      "title": "Height"
+    },
+    {
+      "value": { "numberValue": 7, "fallback": 7 },
+      "title": "Shirt"
+    },
+    {
+      "value": { "numberValue": 24, "fallback": "24" },
+      "title": "Age"
+    },
+    {
+      "value": { "key": "left", "fallback": "Left" },
+      "title": "Preferred foot"
+    },
+    {
+      "value": { "key": null, "fallback": "England" },
+      "title": "Country",
+      "countryCode": "ENG"
+    }
+  ],
   "primaryTeam": {
     "teamId": 9825,
     "teamName": "Arsenal",

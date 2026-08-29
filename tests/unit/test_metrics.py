@@ -3,6 +3,7 @@ from football_analytics.analysis.metrics import (
     apply_minutes_floor,
     compute_metric,
     filter_by_position_group,
+    filter_by_shared_position,
     per_90,
     percentile,
     position_group,
@@ -42,6 +43,21 @@ def test_filter_by_position_group_keeps_only_matching_players():
     filtered = filter_by_position_group([forward, defender], "Forward")
 
     assert filtered == [forward]
+
+
+def test_filter_by_shared_position_keeps_players_with_any_matching_code():
+    def make_positioned_player(fotmob_id: int, name: str, *codes: str) -> Player:
+        positions = tuple(Position(code=code, group="Midfielder") for code in codes)
+        return Player(fotmob_id=fotmob_id, name=name, team=TEAM, positions=positions, statistics=())
+
+    target = make_positioned_player(1, "Target", "CAM", "CDM")
+    shares_cam = make_positioned_player(2, "SharesCAM", "CAM")
+    shares_cdm = make_positioned_player(3, "SharesCDM", "CDM", "CM")
+    no_overlap = make_positioned_player(4, "NoOverlap", "ST")
+
+    filtered = filter_by_shared_position([target, shares_cam, shares_cdm, no_overlap], target)
+
+    assert filtered == [target, shares_cam, shares_cdm]
 
 
 def test_apply_minutes_floor_excludes_players_below_the_floor():

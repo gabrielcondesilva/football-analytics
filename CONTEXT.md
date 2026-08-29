@@ -40,7 +40,7 @@ Qualquer valor usado para comparação ou visualização — pode ser uma Statis
 _Avoid_: Stat, KPI.
 
 **População de Comparação**:
-A população de referência usada para calcular o percentil de um Player em uma Metric. Cada tela do dashboard escopa essa população com seus próprios filtros — ex.: a Análise de Jogadores escopa por Position Group (do próprio Player) e Minutes Floor, sem usar Team/League.
+A população de referência usada para calcular o percentil de um Player em uma Metric. Cada tela do dashboard escopa essa população com seus próprios filtros — ex.: a Análise de Jogadores escopa por Position (código exato do próprio Player, correspondência em qualquer uma de suas Positions — não apenas o Position Group) e Minutes Floor, sem usar Team/League.
 _Avoid_: Peer group, referência, população de referência.
 
 **Quartil**:

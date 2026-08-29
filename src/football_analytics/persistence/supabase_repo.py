@@ -43,7 +43,15 @@ class SupabaseRepo:
     def save_player(self, snapshot_id: int, team_id: int, player: Player) -> int:
         player_id = self._upsert_and_get_id(
             "players",
-            {"fotmob_id": player.fotmob_id, "name": player.name, "team_id": team_id},
+            {
+                "fotmob_id": player.fotmob_id,
+                "name": player.name,
+                "team_id": team_id,
+                "age": player.age,
+                "nationality": player.nationality,
+                "preferred_foot": player.preferred_foot,
+                "photo_url": player.photo_url,
+            },
             "fotmob_id",
         )
 

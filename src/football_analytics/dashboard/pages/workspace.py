@@ -1,8 +1,8 @@
 """Player Analysis page (Análise de Jogadores): search a single Player, scope
-a Comparison Population by Position Group + Minutes Floor, show that
-Player's biographical card, and compare selected Metrics against the
-Comparison Population as either a Tercil-colored matrix or a percentile
-radar.
+a Comparison Population by exact Position (union match against the Player's
+own codes) + Minutes Floor, show that Player's biographical card, and
+compare selected Metrics against the Comparison Population as either a
+Tercil-colored matrix or a percentile radar.
 
 Full rebuild per .scratch/player-analysis-page/spec.md, tickets 03-05: shell/
 search/filters/card, Metrics multiselect + Por Temporada/Por 90 toggle +
@@ -12,6 +12,8 @@ per ADR 0003 — see docs/adr/0003-drop-scout-comparison-on-workspace-rebuild.md
 """
 
 from __future__ import annotations
+
+from typing import Literal, cast
 
 import pandas as pd
 import plotly.express as px
@@ -24,35 +26,32 @@ from football_analytics.analysis.metrics import (
     TercileBand,
     apply_minutes_floor,
     compute_metric,
-    filter_by_position_group,
-    position_group,
+    filter_by_shared_position,
+    percentile,
     tercile_band,
 )
 from football_analytics.dashboard.data import get_players
-from football_analytics.dashboard.shared import metric_label_options, position_codes
+from football_analytics.dashboard.shared import (
+    metric_label_options,
+    nationality_label,
+    position_codes,
+    preferred_foot_label,
+)
 from football_analytics.domain.models import Player
 
-ALL_POSITION_GROUPS = "Todos"
 NO_PLAYER_SELECTED = "Selecione um jogador…"
 
-LAST_PLAYER_KEY = "workspace_last_player_id"
-POSITION_GROUP_KEY = "workspace_position_group"
-
-_UNSET: object = object()
-"""Sentinel distinguishing "never synced" from "synced to no Player
-selected" (`None`) in `st.session_state`."""
-
-AVATAR_HEIGHT = 88
+AVATAR_HEIGHT = 160
 
 VALUE_KIND_BY_LABEL: dict[str, MetricKind] = {"Por Temporada": "raw", "Por 90 min": "per_90"}
 VIEW_OPTIONS = ("Matriz", "Radar")
 
+# Default sequential hue from the project's dataviz skill (references/
+# palette.md) — same tone used elsewhere in the app (Overview's leaderboards,
+# before their removal). The radar is a single Player's own profile, not a
+# good/bad status, so it stays on this one brand hue rather than the matrix's
+# Tercil red/amber/green.
 SEQUENTIAL_BLUE = "#2a78d6"
-"""Default sequential hue from the project's dataviz skill (references/
-palette.md) — same tone used elsewhere in the app (Overview's leaderboards,
-before their removal). The radar is a single Player's own profile, not a
-good/bad status, so it stays on this one brand hue rather than the matrix's
-Tercil red/amber/green."""
 
 # Fixed, mode-invariant status colors from the project's dataviz skill
 # (references/palette.md) — never themed, so a tercile band reads the same
@@ -78,33 +77,17 @@ def bio_field(value: int | str | None) -> str:
     return str(value) if value is not None else "-"
 
 
-def sync_position_group_with_player(
-    selected_player: Player | None, position_groups: list[str]
-) -> None:
-    """Auto-fill the Position Group filter with the selected Player's group,
-    every time the *selected Player* changes — not on every rerun, so a
-    manual override of Position Group survives reruns but resets the next
-    time the Player changes.
-
-    Must run before the Position Group `st.selectbox` below is instantiated:
-    Streamlit only respects a `st.session_state[key]` write for a widget's
-    `key` when it happens earlier in the same script run.
-    """
-    current_player_id = selected_player.fotmob_id if selected_player else None
-    if st.session_state.get(LAST_PLAYER_KEY, _UNSET) == current_player_id:
-        return
-    st.session_state[LAST_PLAYER_KEY] = current_player_id
-    group = position_group(selected_player) if selected_player else None
-    st.session_state[POSITION_GROUP_KEY] = group if group in position_groups else ALL_POSITION_GROUPS
-
-
 def metric_matrix_dataframe(
     comparison_population: list[Player], player: Player, specs: list[MetricSpec]
 ) -> pd.DataFrame:
     """One row per selected Metric: its Value (per `spec.kind`) and its
-    Percentile within `comparison_population`. Percentile is always computed
-    regardless of `spec.kind` — the Percentual column never switches type
-    with the Por Temporada/Por 90 min toggle, only Valor does.
+    Percentile within `comparison_population`. Percentile is ranked on the
+    same basis as Valor — raw season totals under Por Temporada, per-90 rate
+    under Por 90 min — so a bench player's near-zero raw total doesn't skew
+    the Por 90 min percentile of a Player who plays every minute, and vice
+    versa. `spec.kind` is always "raw" or "per_90" here, never "percentile"
+    itself (that's `metric_radar_chart`/this function's own concern, not a
+    caller-supplied MetricSpec).
 
     A Metric missing for this Player (or for the whole population) keeps its
     row with a blank Valor/Percentual rather than being dropped, so every
@@ -112,12 +95,13 @@ def metric_matrix_dataframe(
     """
     rows = []
     for spec in specs:
-        percentile_spec = MetricSpec(key=spec.key, label=spec.label, kind="percentile")
         rows.append(
             {
                 "Métrica": spec.label,
                 "Valor": compute_metric(comparison_population, player, spec),
-                "Percentual": compute_metric(comparison_population, player, percentile_spec),
+                "Percentual": percentile(
+                    comparison_population, player, spec.key, kind=cast(Literal["raw", "per_90"], spec.kind)
+                ),
             }
         )
     return pd.DataFrame(rows, columns=["Métrica", "Valor", "Percentual"])
@@ -136,10 +120,10 @@ def matrix_column_config(df: pd.DataFrame, kind: MetricKind) -> dict:
     columns. Valor follows the same convention as the Overview leaderboards
     (`leaderboard_dataframe`'s sibling `value_column_config`): Per-90 rates
     always show two decimals; Por Temporada totals stay whole unless the
-    underlying data is itself fractional. Percentual is always a whole
-    percentage, independent of the toggle.
+    underlying data is itself fractional. Percentual always shows one
+    decimal, independent of the toggle.
     """
-    config: dict = {"Percentual": st.column_config.NumberColumn(format="%.0f%%")}
+    config: dict = {"Percentual": st.column_config.NumberColumn(format="%.1f%%")}
     if kind == "per_90" or (df["Valor"].dropna() % 1 != 0).any():
         config["Valor"] = st.column_config.NumberColumn(format="%.2f")
     return config
@@ -167,60 +151,69 @@ def metric_radar_chart(matrix_df: pd.DataFrame) -> Figure:
 
 
 def render_player_card(player: Player) -> None:
-    """Player identity card: avatar placeholder, name, positions, Team, and
-    the (currently always empty) biographical fields."""
+    """Player identity card: photo (or a placeholder icon while the Player's
+    `photo_url` hasn't been backfilled) stacked above name/positions/Team,
+    then the biographical fields as a stacked label/value list.
+
+    This card lives in a narrow sidebar-width column (`card_col`, see
+    `main()`), so the photo is stacked above the name — rather than beside
+    it in a slim avatar column — to give it real visual presence at that
+    width. The bio fields (Idade/Nacionalidade/Pé preferido) are plain text
+    rows instead of `st.metric`: a long value like "República Dominicana"
+    needs to wrap onto a second line at this width, and `st.metric`'s large
+    bold value doesn't wrap cleanly and reads as a different type scale than
+    the name/caption above it. Plain rows wrap like normal text and share
+    the body font, so photo + name + bio read as one coherent unit. "-"
+    until FotMob has that field for this Player, or until the Player was
+    ingested after bio fields existed — via `bio_field`."""
     with st.container(border=True):
-        avatar_col, info_col = st.columns([1, 4], vertical_alignment="center")
-        with (
-            avatar_col,
-            st.container(
+        with st.container(horizontal_alignment="center"):
+            with st.container(
                 border=True,
+                width=AVATAR_HEIGHT,
                 height=AVATAR_HEIGHT,
                 horizontal_alignment="center",
                 vertical_alignment="center",
-            ),
+            ):
+                if player.photo_url:
+                    st.image(player.photo_url, width=AVATAR_HEIGHT - 24)
+                else:
+                    st.markdown(":material/person:", text_alignment="center")
+            st.subheader(player.name, text_alignment="center")
+            st.caption(
+                f"{position_codes(player) or 'Sem posição registrada'} · {player.team.name}",
+                text_alignment="center",
+            )
+
+        st.divider()
+
+        for label, value in (
+            ("Idade", bio_field(player.age)),
+            ("Nacionalidade", bio_field(nationality_label(player.nationality))),
+            ("Pé preferido", bio_field(preferred_foot_label(player.preferred_foot))),
         ):
-            st.markdown(":material/person:", text_alignment="center")
-        with info_col:
-            st.subheader(player.name)
-            st.caption(f"{position_codes(player) or 'Sem posição registrada'} · {player.team.name}")
-
-        bio_cols = st.columns(3)
-        with bio_cols[0]:
-            st.metric("Idade", bio_field(player.age))
-        with bio_cols[1]:
-            st.metric("Nacionalidade", bio_field(player.nationality))
-        with bio_cols[2]:
-            st.metric("Pé preferido", bio_field(player.preferred_foot))
+            st.write(f"**{label}:** {value}")
 
 
-def render_metrics_section(
-    players: list[Player], comparison_population: list[Player], player: Player
+def render_metrics_content(
+    comparison_population: list[Player],
+    player: Player,
+    label_options: dict[str, str],
+    selected_metric_labels: list[str],
+    value_kind_label: str,
+    view: str,
 ) -> None:
-    """Metrics multiselect + Por Temporada/Por 90 toggle, then either the
-    Tercil-colored matrix or a percentile radar for the same selected
-    Metrics (Matriz<->Radar toggle) — or an instruction message while
-    nothing is selected yet. Lives in the column beside `render_player_card`,
-    per Q11 of the grill that originated this spec — card and Metrics side
-    by side, not stacked. Switching Matriz<->Radar, like switching Por
-    Temporada/Por 90, never resets the Metrics multiselect: each widget's
-    Streamlit-managed state is independent of the others, so no explicit
-    `st.session_state` bookkeeping is needed here (unlike Position Group in
-    `sync_position_group_with_player`, which has to survive Player changes).
+    """Tercil-colored matrix or percentile radar for the Metrics chosen by
+    the sidebar's Métricas multiselect + Tipo de Valor/Visualização toggles
+    (below Buscar Jogador) — or an instruction message while nothing is
+    selected yet. Lives in the column beside `render_player_card`, per Q11 of
+    the grill that originated this spec — card and Metrics side by side, not
+    stacked.
     """
     st.subheader("Métricas")
-    label_options = metric_label_options(players)
-    metric_col, toggle_col = st.columns([3, 1])
-    with metric_col:
-        selected_metric_labels = st.multiselect("Métricas", sorted(label_options))
-    with toggle_col:
-        value_kind_label = st.radio("Tipo de Valor", list(VALUE_KIND_BY_LABEL), horizontal=True)
-
     if not selected_metric_labels:
-        st.info("Selecione ao menos uma Métrica para ver a matriz ou o radar de comparação.")
+        st.info("Selecione ao menos uma Métrica na barra lateral para ver a matriz ou o radar de comparação.")
         return
-
-    view = st.radio("Visualização", VIEW_OPTIONS, horizontal=True)
 
     value_kind = VALUE_KIND_BY_LABEL[value_kind_label]
     specs = [
@@ -249,7 +242,6 @@ def main() -> None:
         st.warning("Nenhum jogador encontrado. O pipeline de ingestão já foi executado?")
         return
 
-    position_groups = sorted({g for p in players if (g := position_group(p)) is not None})
     search_options = player_search_options(players)
 
     with st.sidebar:
@@ -261,32 +253,40 @@ def main() -> None:
         )
         selected_player = search_options.get(search_label)
 
-        sync_position_group_with_player(selected_player, position_groups)
-        selected_group = st.selectbox(
-            "Grupo de Posição",
-            [ALL_POSITION_GROUPS, *position_groups],
-            key=POSITION_GROUP_KEY,
+        st.subheader("Métricas")
+        label_options = metric_label_options(players)
+        selected_metric_labels = st.multiselect(
+            "Métricas", sorted(label_options), placeholder="Selecione as métricas…"
         )
-        minutes_floor = st.number_input("Minutos Mínimos", min_value=0, value=0, step=90)
+        value_kind_label = st.radio("Tipo de Valor", list(VALUE_KIND_BY_LABEL), horizontal=True)
+        view = st.radio("Visualização", VIEW_OPTIONS, horizontal=True)
+
+        minutes_floor = st.number_input("Minutos Mínimos", min_value=0, value=900, step=90)
 
     if selected_player is None:
         st.info("Busque um jogador na barra lateral para começar a análise.")
         return
 
-    comparison_population = (
-        players if selected_group == ALL_POSITION_GROUPS else filter_by_position_group(players, selected_group)
-    )
+    comparison_population = filter_by_shared_position(players, selected_player)
     comparison_population = apply_minutes_floor(comparison_population, minutes_floor)
 
     card_col, metrics_col = st.columns([1, 2])
     with card_col:
+        st.subheader("Perfil do Jogador")
         render_player_card(selected_player)
         st.caption(
             f"População de comparação: {len(comparison_population)} jogador(es) · "
-            f"Grupo de Posição: {selected_group} · Minutos mínimos: {int(minutes_floor)}"
+            f"Posições: {position_codes(selected_player)} · Minutos mínimos: {int(minutes_floor)}"
         )
     with metrics_col:
-        render_metrics_section(players, comparison_population, selected_player)
+        render_metrics_content(
+            comparison_population,
+            selected_player,
+            label_options,
+            selected_metric_labels,
+            value_kind_label,
+            view,
+        )
 
 
 main()

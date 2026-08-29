@@ -21,11 +21,19 @@ create table if not exists teams (
     name text not null
 );
 
+-- age/nationality/preferred_foot/photo_url are current-state attributes
+-- (like player_positions below), not scoped to a Snapshot: refreshed on
+-- every ingestion run. Nullable because FotMob doesn't always have every
+-- field for every Player.
 create table if not exists players (
     id bigint generated always as identity primary key,
     fotmob_id integer not null unique,
     name text not null,
-    team_id bigint not null references teams (id)
+    team_id bigint not null references teams (id),
+    age integer,
+    nationality text,
+    preferred_foot text,
+    photo_url text
 );
 
 -- A Player's Positions (Position Group included) are current-state
@@ -59,3 +67,9 @@ create table if not exists statistics (
 
 -- Idempotent for databases created before `format` existed.
 alter table statistics add column if not exists format text not null default 'number';
+
+-- Idempotent for databases created before these bio columns existed.
+alter table players add column if not exists age integer;
+alter table players add column if not exists nationality text;
+alter table players add column if not exists preferred_foot text;
+alter table players add column if not exists photo_url text;

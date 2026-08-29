@@ -38,6 +38,19 @@ def filter_by_position_group(players: list[Player], group: str) -> list[Player]:
     return [p for p in players if position_group(p) == group]
 
 
+def filter_by_shared_position(players: list[Player], player: Player) -> list[Player]:
+    """Players sharing at least one exact Position code with `player` (union
+    match, not intersection) — e.g. a CAM/CDM Player is compared against
+    anyone who plays CAM *or* CDM, not just Players who play both.
+
+    `player` itself is always included in its own result (it shares every
+    one of its own codes), matching `percentile()`'s expectation that the
+    target Player is counted among its own peers.
+    """
+    codes = {pos.code for pos in player.positions}
+    return [p for p in players if any(pos.code in codes for pos in p.positions)]
+
+
 def apply_minutes_floor(players: list[Player], minutes_floor: float) -> list[Player]:
     return [p for p in players if (statistic_value(p, MINUTES_PLAYED_KEY) or 0) >= minutes_floor]
 
@@ -60,17 +73,26 @@ def per_90(player: Player, key: str) -> float | None:
     return stat.value * 90 / minutes
 
 
-def percentile(players: list[Player], player: Player, key: str) -> float | None:
-    """Percentile of `player`'s raw Statistic `key` among the given peers.
+def percentile(
+    players: list[Player], player: Player, key: str, kind: Literal["raw", "per_90"] = "raw"
+) -> float | None:
+    """Percentile of `player`'s Statistic `key` among the given peers.
+
+    `kind` selects what's ranked: `"raw"` (default) compares season totals,
+    `"per_90"` compares the per-90 rate instead. Ranking totals mixes players
+    who played very different amounts of time — a bench player's near-zero
+    total drags the whole population down, inflating a regular starter's
+    percentile — so pass `"per_90"` for a rate-fair comparison.
 
     `players` is the reference population (typically the Player's Position
     Group within the Season) and is the caller's responsibility to scope —
     this function only ranks within whatever population it is given.
     """
-    target = statistic_value(player, key)
+    value_fn = statistic_value if kind == "raw" else per_90
+    target = value_fn(player, key)
     if target is None:
         return None
-    peer_values = [v for p in players if (v := statistic_value(p, key)) is not None]
+    peer_values = [v for p in players if (v := value_fn(p, key)) is not None]
     if not peer_values:
         return None
     return 100 * sum(1 for v in peer_values if v <= target) / len(peer_values)

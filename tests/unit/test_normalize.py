@@ -9,6 +9,8 @@ from football_analytics.ingestion.normalize import (
     parse_squad,
     parse_teams,
     parse_top_stats,
+    photo_url,
+    with_bio,
     with_statistics,
 )
 
@@ -263,3 +265,59 @@ def test_with_statistics_returns_a_player_carrying_the_given_statistics():
     assert updated.statistics == (Statistic(key="goals", label="Goals", value=7.0),)
     assert updated.fotmob_id == player.fotmob_id
     assert updated.positions == player.positions
+
+
+def test_photo_url_is_deterministic_from_the_fotmob_id():
+    assert photo_url(961995) == "https://images.fotmob.com/image_resources/playerimages/961995.png"
+
+
+def test_with_bio_merges_age_nationality_preferred_foot_and_photo_url():
+    payload = load_fixture("player_data.json")
+    team = Team(fotmob_id=9825, name="Arsenal")
+    player = Player(
+        fotmob_id=961995,
+        name="Bukayo Saka",
+        team=team,
+        positions=(Position(code="RW", group="Forward"),),
+        statistics=(),
+    )
+
+    updated = with_bio(player, payload)
+
+    assert updated.age == 24
+    assert updated.nationality == "England"
+    assert updated.preferred_foot == "Left"
+    assert updated.photo_url == "https://images.fotmob.com/image_resources/playerimages/961995.png"
+    assert updated.fotmob_id == player.fotmob_id
+
+
+def test_with_bio_leaves_a_missing_field_at_its_default():
+    payload = {"playerInformation": [{"title": "Age", "value": {"numberValue": 24}}]}
+    team = Team(fotmob_id=9825, name="Arsenal")
+    player = Player(
+        fotmob_id=961995,
+        name="Bukayo Saka",
+        team=team,
+        positions=(),
+        statistics=(),
+    )
+
+    updated = with_bio(player, payload)
+
+    assert updated.age == 24
+    assert updated.nationality is None
+    assert updated.preferred_foot is None
+
+
+def test_with_bio_handles_a_missing_player_information_section():
+    team = Team(fotmob_id=9825, name="Arsenal")
+    player = Player(
+        fotmob_id=961995, name="Bukayo Saka", team=team, positions=(), statistics=()
+    )
+
+    updated = with_bio(player, {})
+
+    assert updated.age is None
+    assert updated.nationality is None
+    assert updated.preferred_foot is None
+    assert updated.photo_url == "https://images.fotmob.com/image_resources/playerimages/961995.png"
