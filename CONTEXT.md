@@ -15,7 +15,7 @@ Uma edição específica de uma League, delimitada no tempo (ex: 2025/26). Escop
 _Avoid_: Year, campanha, temporada (em código).
 
 **Team**:
-Entidade de referência mínima (nome, escudo) à qual um Player pertence. Não carrega estatísticas próprias nesta fase do projeto — isso é escopo de uma fase futura.
+Entidade de referência mínima (nome, escudo) à qual um Player pertence *agora* — reflete sempre o elenco mais recente ingerido, incluindo a Liga atual do Team. Essa Liga atual é um fato do Team, independente de qual League gerou as Statistics exibidas do Player (ver Statistic): um Player recém-transferido aparece com o Team/Liga novos mesmo enquanto suas Statistics ainda são as da Season mais recente disponível, de onde quer que venham. Não carrega estatísticas próprias nesta fase do projeto — isso é escopo de uma fase futura.
 _Avoid_: Club, Squad.
 
 **Player**:
@@ -32,7 +32,7 @@ Classificação mais ampla de Positions (ex: defensores, meio-campistas, atacant
 ### Estatísticas e métricas
 
 **Statistic**:
-Um valor bruto coletado do FotMob para um Player em uma Season (ex: total de gols, passes certos).
+Um valor bruto coletado do FotMob para um Player em uma Season (ex: total de gols, passes certos). A League de uma Statistic é a da sua própria Season, que pode divergir da Liga atual do Team do Player (ver Team) — por exemplo, logo após uma transferência, as Statistics exibidas ainda são as da Season mais recente disponível para o Player, na League onde ele efetivamente as produziu, não necessariamente a Liga atual do seu novo Team.
 _Avoid_: Metric, stat, número.
 
 **Metric**:

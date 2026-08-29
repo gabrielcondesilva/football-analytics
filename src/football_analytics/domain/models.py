@@ -50,8 +50,10 @@ class Player:
     statistics: tuple[Statistic, ...]
 
     league: str | None = None
-    """Name of the League this Player's Statistics were captured under (via
-    their latest Snapshot's Season). None when no Snapshot exists yet."""
+    """Name of the League this Player's Team currently plays in (ADR-0004) —
+    always their most recently ingested roster, independent of which League
+    actually produced the Statistics below. None until the Team's League has
+    been backfilled."""
 
     age: int | None = None
     nationality: str | None = None

@@ -1,0 +1,5 @@
+# Team carries its own current League, decoupled from Statistics' Season/League
+
+Hoje a "Liga" exibida de um Player é inferida indiretamente de qual Snapshot suas Statistics vieram (Snapshot → Season → League) — não existe nenhum fato de League armazenado no Team em si. Isso quebra assim que um Player troca de clube entre Leagues que já ingerimos: seu elenco atual já reflete o Team novo, mas suas Statistics da Season mais recente ainda pertencem à League antiga, então ele acaba etiquetado (e filtrável) pela League errada, ou some da base inteiramente se a ingestão da League nova não achar uma entrada de Statistics pra ele.
+
+Decidimos dar ao Team seu próprio `league_id`, tornando "a Liga atual de um Player" um fato do Team (sempre o elenco mais recente ingerido), independente de qual League/Season efetivamente produziu as Statistics exibidas dele. Um Player pode legitimamente mostrar Time/Liga atuais diferentes da League de origem de suas próprias Statistics — isso é o comportamento correto, não um bug, e passa a ser a base para um futuro filtro por Season (ver CONTEXT.md: Team, Statistic).

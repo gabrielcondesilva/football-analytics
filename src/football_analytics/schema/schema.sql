@@ -73,3 +73,10 @@ alter table players add column if not exists age integer;
 alter table players add column if not exists nationality text;
 alter table players add column if not exists preferred_foot text;
 alter table players add column if not exists photo_url text;
+
+-- The League a Team currently plays in — a current-state fact of the Team
+-- itself (always the most recently ingested roster), independent of which
+-- League/Season produced any given Player's Statistics (ADR-0004). Nullable
+-- because it's backfilled after the fact for Teams ingested before this
+-- column existed.
+alter table teams add column if not exists league_id bigint references leagues (id);

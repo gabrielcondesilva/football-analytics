@@ -35,9 +35,14 @@ class SupabaseRepo:
             "season_id,scraped_at",
         )
 
-    def save_team(self, team: Team) -> int:
+    def save_team(self, team: Team, league_id: int) -> int:
+        """`league_id` is the Team's current League (ADR-0004) — always the
+        League being ingested right now, never derived from a Player's
+        Statistics. Overwritten on every ingestion run, same as `name`."""
         return self._upsert_and_get_id(
-            "teams", {"fotmob_id": team.fotmob_id, "name": team.name}, "fotmob_id"
+            "teams",
+            {"fotmob_id": team.fotmob_id, "name": team.name, "league_id": league_id},
+            "fotmob_id",
         )
 
     def save_player(self, snapshot_id: int, team_id: int, player: Player) -> int:

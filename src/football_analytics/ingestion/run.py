@@ -60,7 +60,7 @@ def ingest_league(league_fotmob_id: int, league_name: str, season_name: str) -> 
     saved_count = 0
     for team in teams:
         try:
-            team_id = repo.save_team(team)
+            team_id = repo.save_team(team, league_id)
             squad_payload = client.get_team(team.fotmob_id, season_name)
             roster = parse_squad(squad_payload, team)
         except Exception as exc:  # noqa: BLE001 - one team's failure must not abort the run
