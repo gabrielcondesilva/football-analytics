@@ -26,6 +26,7 @@ from football_analytics.dashboard.data import get_players
 from football_analytics.dashboard.shared import (
     bio_field,
     metric_label_options,
+    nationality_label,
     position_codes,
     team_logo_url,
 )
@@ -365,6 +366,16 @@ def main() -> None:
     league_names = sorted({p.league for p in players if p.league})
     label_options = metric_label_options(players)
 
+    ages = [p.age for p in players if p.age is not None]
+    min_age, max_age = (min(ages), max(ages)) if ages else (0, 0)
+
+    nationality_by_label: dict[str, str] = {}
+    for p in players:
+        if p.nationality:
+            nationality_by_label.setdefault(
+                nationality_label(p.nationality) or p.nationality, p.nationality
+            )
+
     with st.sidebar:
         st.header("Filtros")
         per90_labels = st.multiselect(
@@ -379,19 +390,9 @@ def main() -> None:
         )
         selected_leagues = st.multiselect("Liga", league_names, placeholder="Selecione as ligas…")
         minutes_floor = st.number_input("Minutos Mínimos", min_value=0, value=900, step=90)
-        st.multiselect(
-            "Idade",
-            [],
-            disabled=True,
-            placeholder="Sem dados disponíveis",
-            help="Em breve — depende de dados de idade ainda não ingeridos.",
-        )
-        st.multiselect(
-            "Nacionalidade",
-            [],
-            disabled=True,
-            placeholder="Sem dados disponíveis",
-            help="Em breve — depende de dados de nacionalidade ainda não ingeridos.",
+        age_range = st.slider("Idade", min_value=min_age, max_value=max_age, value=(min_age, max_age))
+        selected_nationality_labels = st.multiselect(
+            "Nacionalidade", sorted(nationality_by_label), placeholder="Selecione as nacionalidades…"
         )
 
     view_players = players
@@ -403,6 +404,12 @@ def main() -> None:
         ]
     if selected_leagues:
         view_players = [p for p in view_players if p.league in selected_leagues]
+    if age_range != (min_age, max_age):
+        low, high = age_range
+        view_players = [p for p in view_players if p.age is not None and low <= p.age <= high]
+    if selected_nationality_labels:
+        selected_nationalities = {nationality_by_label[label] for label in selected_nationality_labels}
+        view_players = [p for p in view_players if p.nationality in selected_nationalities]
     view_players = apply_minutes_floor(view_players, minutes_floor)
 
     selections: list[tuple[str, MetricKind]] = [(label, "per_90") for label in per90_labels] + [
