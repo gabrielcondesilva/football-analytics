@@ -43,6 +43,34 @@ def get_latest_snapshots(client: Client) -> dict[int, str | None]:
     return {snapshot_id: league_name for league_name, snapshot_id in latest_snapshot_id_by_league.items()}
 
 
+_PLAYERS_SELECT = (
+    "id, fotmob_id, name, age, nationality, preferred_foot, photo_url, teams(fotmob_id, name), "
+    "player_positions(code, position_group), statistics(key, label, value, format, snapshot_id)"
+)
+_PAGE_SIZE = 1000
+
+
+def _fetch_all_player_rows(client: Client, league_by_snapshot_id: dict[int, str | None]) -> list[dict]:
+    """Every row of the `players` query, paginated past PostgREST's default
+    1000-row response cap via `.range()`. A single un-paginated `.execute()`
+    silently truncated the League with the highest `players.id`s once the
+    database passed 1000 total Players across every League combined (hit
+    live once Ligue 1 was ingested on top of Premier League + La Liga) —
+    `.order("id")` keeps page boundaries stable across the repeated queries
+    this loop issues."""
+    rows: list[dict] = []
+    start = 0
+    while True:
+        query = client.table("players").select(_PLAYERS_SELECT).order("id")
+        if league_by_snapshot_id:
+            query = query.in_("statistics.snapshot_id", list(league_by_snapshot_id))
+        page = cast(list[dict], query.range(start, start + _PAGE_SIZE - 1).execute().data)
+        rows.extend(page)
+        if len(page) < _PAGE_SIZE:
+            return rows
+        start += _PAGE_SIZE
+
+
 def list_players(client: Client) -> list[Player]:
     """Every Player currently in the database, with their Team, Position(s),
     Statistics, and League (from that Player's own League's latest Snapshot;
@@ -54,16 +82,8 @@ def list_players(client: Client) -> list[Player]:
     """
     league_by_snapshot_id = get_latest_snapshots(client)
 
-    query = client.table("players").select(
-        "id, fotmob_id, name, age, nationality, preferred_foot, photo_url, teams(fotmob_id, name), "
-        "player_positions(code, position_group), statistics(key, label, value, format, snapshot_id)"
-    )
-    if league_by_snapshot_id:
-        query = query.in_("statistics.snapshot_id", list(league_by_snapshot_id))
-    result = query.execute()
-
     players = []
-    for row in cast(list[dict], result.data):
+    for row in _fetch_all_player_rows(client, league_by_snapshot_id):
         team_row = cast(dict, row["teams"])
         team = Team(fotmob_id=team_row["fotmob_id"], name=team_row["name"])
         positions = tuple(
