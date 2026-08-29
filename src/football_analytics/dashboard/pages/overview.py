@@ -148,10 +148,33 @@ LEADERBOARD_CARD_CSS = """
 
 .lb-value {
     justify-content: flex-end;
+    gap: 0.35rem;
     font-weight: 700;
     font-size: 0.92rem;
     color: var(--text-color);
     font-variant-numeric: tabular-nums;
+}
+/* Rare-case mismatch indicator (Player transferred, Statistics still from
+   their previous League — see `_league_flag_html`). Reserves no space when
+   absent; when present, a small circular "i" rather than a text pill so it
+   doesn't compete with the value's own weight/size for attention. Native
+   `title` attribute supplies the hover tooltip, no JS needed. */
+.lb-league-flag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--secondary-background-color, rgba(128, 128, 128, 0.25));
+    color: var(--text-color);
+    opacity: 0.65;
+    font-size: 0.6rem;
+    font-weight: 700;
+    font-style: italic;
+    font-family: serif;
+    cursor: help;
 }
 
 .lb-title {
@@ -177,6 +200,15 @@ class LeaderboardRow:
     positions: str
     value: float
 
+    league: str | None = None
+    statistics_league: str | None = None
+    """The Player's current League (via their Team) and the League whose
+    Season actually produced `value` (via their latest Snapshot) — see
+    `Player.league`/`Player.statistics_league` (ADR-0004). These differ for
+    a recently-transferred Player, whose shown value still comes from their
+    previous League. `None`/`None` for a Player predating the League-
+    backfill or with no Statistics Season resolved."""
+
 
 def leaderboard_rows(players: list[Player], key: str, kind: MetricKind) -> list[LeaderboardRow]:
     entries = top_metric_leaderboard(players, key, kind=kind, size=TABLE_SIZE)
@@ -190,6 +222,8 @@ def leaderboard_rows(players: list[Player], key: str, kind: MetricKind) -> list[
             team_fotmob_id=player.team.fotmob_id,
             positions=position_codes(player),
             value=value,
+            league=player.league,
+            statistics_league=player.statistics_league,
         )
         for rank, (player, value) in enumerate(entries, start=1)
     ]
@@ -250,6 +284,30 @@ def _team_cell_html(row: LeaderboardRow) -> str:
     )
 
 
+def _league_flag_html(row: LeaderboardRow) -> str:
+    """A discreet mismatch indicator for a Player whose shown `value` was
+    produced in a different League than the one they currently play in —
+    e.g. right after a transfer, before they've logged minutes in the new
+    League (see `LeaderboardRow.league`/`statistics_league`, ADR-0004).
+
+    Returns "" (no markup at all, not just a hidden element) when
+    `league`/`statistics_league` are equal or either is `None`, so the
+    common case — today, effectively every row — reserves no layout space
+    and adds no visual weight. When they do differ, a small icon with a
+    native `title` tooltip communicates "these numbers are from
+    {statistics_league}, not {league}" without competing with the value
+    itself for attention.
+    """
+    if (
+        row.statistics_league is None
+        or row.league is None
+        or row.statistics_league == row.league
+    ):
+        return ""
+    tooltip = f"Valores de {row.statistics_league}, não {row.league}"
+    return f'<span class="lb-league-flag" title="{html_escape(tooltip)}">i</span>'
+
+
 def leaderboard_rows_html(rows: list[LeaderboardRow], kind: MetricKind) -> str:
     """Render leaderboard rows as a card row-list — one line per Player
     (Rank+Photo+Name, Idade, Escudo+Time, Posições, Valor), no table
@@ -288,7 +346,7 @@ def leaderboard_rows_html(rows: list[LeaderboardRow], kind: MetricKind) -> str:
         '<div class="lb-cell lb-position">'
         f'<span class="lb-position-badge">{html_escape(row.positions or "-")}</span>'
         "</div>"
-        f'<div class="lb-cell lb-value">{format_value(row.value)}</div>'
+        f'<div class="lb-cell lb-value">{_league_flag_html(row)}{format_value(row.value)}</div>'
         for row in rows
     )
     return f'<div class="lb-list">{cells}</div>'

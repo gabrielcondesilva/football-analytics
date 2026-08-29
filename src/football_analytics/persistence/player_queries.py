@@ -74,17 +74,20 @@ def _fetch_all_player_rows(client: Client, league_by_snapshot_id: dict[int, str 
 
 def list_players(client: Client) -> list[Player]:
     """Every Player currently in the database, with their Team, Position(s),
-    Statistics, and current League (ADR-0004: the League of the Player's own
-    Team — always their most recently ingested roster — not necessarily the
-    League that produced the Statistics below; empty/None until the Team's
-    League has been backfilled).
+    Statistics, current League, and Statistics League.
+
+    `league` is the Player's own Team's current League (ADR-0004 — always
+    their most recently ingested roster; None until the Team's League has
+    been backfilled). `statistics_league` is the League whose Season
+    actually produced the Statistics below (via their latest Snapshot;
+    None if no Statistic exists yet) — these two can differ for a
+    recently-transferred Player, whose shown Statistics still come from
+    their previous League until they have some in the new one (see
+    `find_known_league_entry`).
 
     Team and Position(s) are current-state attributes (not Snapshot-scoped),
     so this works regardless of which Statistic categories, if any, have
-    been ingested for a given Player. Statistics themselves may come from a
-    different League's Season than the Player's current Team (a fallback,
-    for a recently-transferred Player — see `find_known_league_entry`), but
-    which League that was isn't surfaced here; that's ticket 03's concern.
+    been ingested for a given Player.
     """
     league_by_snapshot_id = get_latest_snapshots(client)
 
@@ -102,6 +105,12 @@ def list_players(client: Client) -> list[Player]:
             Statistic(key=s["key"], label=s["label"], value=s["value"], format=s["format"])
             for s in raw_statistics
         )
+        # A Player's Statistics all share one Snapshot (they were all
+        # ingested together), so any row's snapshot_id identifies the
+        # League that produced them.
+        statistics_league_name = (
+            league_by_snapshot_id.get(raw_statistics[0]["snapshot_id"]) if raw_statistics else None
+        )
         players.append(
             Player(
                 fotmob_id=row["fotmob_id"],
@@ -110,6 +119,7 @@ def list_players(client: Client) -> list[Player]:
                 positions=positions,
                 statistics=statistics,
                 league=league_name,
+                statistics_league=statistics_league_name,
                 age=row.get("age"),
                 nationality=row.get("nationality"),
                 preferred_foot=row.get("preferred_foot"),

@@ -55,6 +55,13 @@ class Player:
     actually produced the Statistics below. None until the Team's League has
     been backfilled."""
 
+    statistics_league: str | None = None
+    """Name of the League whose Season produced the Statistics above (via
+    their latest Snapshot). None when no Statistic exists yet. May differ
+    from `league` for a recently-transferred Player, whose shown Statistics
+    still come from their previous League until they have some in the new
+    one (ADR-0004, `find_known_league_entry`)."""
+
     age: int | None = None
     nationality: str | None = None
     preferred_foot: str | None = None
