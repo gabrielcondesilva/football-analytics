@@ -14,6 +14,18 @@ Persists incrementally (team by team, player by player) rather than
 buffering the whole league in memory: a failure partway through a
 1000+ request run still leaves everything scraped so far saved under the
 Snapshot, instead of losing it all.
+
+For a run too long to finish in one sitting (something outside this
+script's control keeps stopping it before it reaches every team): re-invoke
+with `--team-offset N` to skip the first N teams (in the League table's own
+order, printed as "Found N teams..." then one line per team as each is
+reached) and `--snapshot-id <id>` (printed near the top of every run's
+output, before the team loop starts) so the continuation writes into the
+same Snapshot instead of minting a new one — otherwise the first chunk's
+Statistics would fall out of the dashboard's "latest Snapshot per League"
+read once a later chunk's fresh Snapshot supersedes it. `--team-limit N`
+caps how many teams a single invocation attempts, for pre-emptively
+chunking a large League across several calls.
 """
 
 from __future__ import annotations
@@ -42,7 +54,15 @@ LEAGUE_NAME = "Premier League"
 SEASON_NAME = "2025/2026"
 
 
-def ingest_league(league_fotmob_id: int, league_name: str, season_name: str) -> None:
+def ingest_league(
+    league_fotmob_id: int,
+    league_name: str,
+    season_name: str,
+    *,
+    team_offset: int = 0,
+    team_limit: int | None = None,
+    snapshot_id: int | None = None,
+) -> None:
     load_dotenv()
     supabase_url = os.environ["SUPABASE_URL"]
     supabase_key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
@@ -52,7 +72,12 @@ def ingest_league(league_fotmob_id: int, league_name: str, season_name: str) -> 
 
     league_id = repo.get_or_create_league(league_fotmob_id, league_name)
     season_id = repo.get_or_create_season(league_id, season_name)
-    snapshot_id = repo.create_snapshot(season_id, datetime.now(UTC))
+    # A continuation chunk (--snapshot-id) writes into the same Snapshot as
+    # the run it's resuming, instead of minting a new one — see the module
+    # docstring for why that matters.
+    if snapshot_id is None:
+        snapshot_id = repo.create_snapshot(season_id, datetime.now(UTC))
+    print(f"Using snapshot {snapshot_id}")
 
     # Leagues already tracked (this one included) are the only safe fallback
     # targets for a Player whose Statistics for `season_name` belong to a
@@ -65,6 +90,9 @@ def ingest_league(league_fotmob_id: int, league_name: str, season_name: str) -> 
     league_table = client.get_league_table(league_fotmob_id, season_name)
     teams = parse_teams(league_table)
     print(f"Found {len(teams)} teams for {league_name} {season_name}")
+    if team_offset or team_limit is not None:
+        teams = teams[team_offset : team_offset + team_limit if team_limit is not None else None]
+        print(f"Processing {len(teams)} teams starting at offset {team_offset}")
 
     saved_count = 0
     fallback_count = 0
@@ -130,8 +158,28 @@ def run() -> None:
     parser.add_argument("--league-id", type=int, default=LEAGUE_FOTMOB_ID, help="FotMob League id")
     parser.add_argument("--league-name", default=LEAGUE_NAME, help="League display name")
     parser.add_argument("--season", default=SEASON_NAME, help='Season name, e.g. "2025/2026"')
+    parser.add_argument(
+        "--team-offset", type=int, default=0, help="Skip this many teams from the League table's order"
+    )
+    parser.add_argument(
+        "--team-limit", type=int, default=None, help="Process at most this many teams this invocation"
+    )
+    parser.add_argument(
+        "--snapshot-id",
+        type=int,
+        default=None,
+        help="Continue writing into this existing Snapshot instead of creating a new one "
+        "(for resuming a run that didn't finish; see the module docstring)",
+    )
     args = parser.parse_args()
-    ingest_league(args.league_id, args.league_name, args.season)
+    ingest_league(
+        args.league_id,
+        args.league_name,
+        args.season,
+        team_offset=args.team_offset,
+        team_limit=args.team_limit,
+        snapshot_id=args.snapshot_id,
+    )
 
 
 if __name__ == "__main__":
