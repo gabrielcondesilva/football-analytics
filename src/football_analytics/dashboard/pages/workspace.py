@@ -32,6 +32,8 @@ from football_analytics.analysis.metrics import (
 )
 from football_analytics.dashboard.data import get_players
 from football_analytics.dashboard.shared import (
+    SEQUENTIAL_BLUE,
+    bio_field,
     metric_label_options,
     nationality_label,
     position_codes,
@@ -45,13 +47,6 @@ AVATAR_HEIGHT = 160
 
 VALUE_KIND_BY_LABEL: dict[str, MetricKind] = {"Por Temporada": "raw", "Por 90 min": "per_90"}
 VIEW_OPTIONS = ("Matriz", "Radar")
-
-# Default sequential hue from the project's dataviz skill (references/
-# palette.md) — same tone used elsewhere in the app (Overview's leaderboards,
-# before their removal). The radar is a single Player's own profile, not a
-# good/bad status, so it stays on this one brand hue rather than the matrix's
-# Tercil red/amber/green.
-SEQUENTIAL_BLUE = "#2a78d6"
 
 # Fixed, mode-invariant status colors from the project's dataviz skill
 # (references/palette.md) — never themed, so a tercile band reads the same
@@ -69,12 +64,6 @@ def player_search_options(players: list[Player]) -> dict[str, Player]:
     """Map "Name (Team)" display label to Player, sorted by name — the
     embedded filter/options for the search selectbox."""
     return {f"{p.name} ({p.team.name})": p for p in sorted(players, key=lambda p: p.name)}
-
-
-def bio_field(value: int | str | None) -> str:
-    """Display value for an optional biographical field: "-" until the
-    field is ingested (all of age/nationality/preferred_foot today)."""
-    return str(value) if value is not None else "-"
 
 
 def metric_matrix_dataframe(

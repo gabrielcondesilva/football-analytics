@@ -95,6 +95,27 @@ def position_codes(player: Player) -> str:
     return ", ".join(pos.code for pos in player.positions)
 
 
+def team_logo_url(fotmob_id: int) -> str:
+    """FotMob's team crest CDN URL — deterministic from the Team's own
+    `fotmob_id` (verified live: returns a 200 image/png), so like Player's
+    `photo_url` no extra request or ingestion is needed to populate it."""
+    return f"https://images.fotmob.com/image_resources/logo/teamlogo/{fotmob_id}.png"
+
+
+def bio_field(value: int | str | None) -> str:
+    """Display value for an optional biographical field: "-" until the
+    field is ingested (all of age/nationality/preferred_foot today)."""
+    return str(value) if value is not None else "-"
+
+
+# Default sequential hue from the project's dataviz skill (references/
+# palette.md), shared by every page that needs a single brand accent rather
+# than the Tercil red/amber/green (that scheme is reserved for status
+# relative to a Comparison Population — see CONTEXT.md's Tercil entry — not
+# a plain value or a single Player's own profile).
+SEQUENTIAL_BLUE = "#2a78d6"
+
+
 # Portuguese display label per `Player.preferred_foot` raw value (FotMob's
 # "Preferred foot" playerInformation entry).
 PREFERRED_FOOT_PT: dict[str, str] = {
