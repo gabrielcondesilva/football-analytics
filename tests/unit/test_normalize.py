@@ -117,6 +117,15 @@ def test_find_entry_id_returns_none_when_tournaments_is_null_for_the_matched_sea
     assert entry_id is None
 
 
+def test_find_entry_id_returns_none_when_the_whole_payload_is_null():
+    """FotMob's `playerData` endpoint returns a bare `null` body for some
+    player ids (seen live for a Ligue 1 squad member) rather than an empty
+    object."""
+    entry_id = find_entry_id(None, season_name="2025/2026", tournament_id=47)
+
+    assert entry_id is None
+
+
 def test_parse_top_stats_extracts_the_raw_value_of_each_top_stat():
     payload = load_fixture("player_stats.json")
 
@@ -316,6 +325,24 @@ def test_with_bio_handles_a_missing_player_information_section():
     )
 
     updated = with_bio(player, {})
+
+    assert updated.age is None
+    assert updated.nationality is None
+    assert updated.preferred_foot is None
+    assert updated.photo_url == "https://images.fotmob.com/image_resources/playerimages/961995.png"
+
+
+def test_with_bio_handles_a_null_payload():
+    """FotMob's `playerData` endpoint returns a bare `null` body for some
+    player ids (seen live for a Ligue 1 squad member) rather than an empty
+    object — `photo_url` is still deterministic from the Player's own id, so
+    it's populated even though every other bio field stays at its default."""
+    team = Team(fotmob_id=9825, name="Arsenal")
+    player = Player(
+        fotmob_id=961995, name="Bukayo Saka", team=team, positions=(), statistics=()
+    )
+
+    updated = with_bio(player, None)
 
     assert updated.age is None
     assert updated.nationality is None

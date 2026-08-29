@@ -44,7 +44,9 @@ def parse_squad(team_payload: dict, team: Team) -> list[Player]:
     return players
 
 
-def find_entry_id(player_data_payload: dict, *, season_name: str, tournament_id: int) -> str | None:
+def find_entry_id(player_data_payload: dict | None, *, season_name: str, tournament_id: int) -> str | None:
+    if not player_data_payload:
+        return None
     for season in player_data_payload["statSeasons"] or []:
         if season["seasonName"] != season_name:
             continue
@@ -111,7 +113,7 @@ def photo_url(fotmob_id: int) -> str:
     return f"https://images.fotmob.com/image_resources/playerimages/{fotmob_id}.png"
 
 
-def with_bio(player: Player, player_data_payload: dict) -> Player:
+def with_bio(player: Player, player_data_payload: dict | None) -> Player:
     """Merge age/nationality/preferred foot (from `playerData`'s
     `playerInformation` list) and the photo URL onto `player`.
 
@@ -119,14 +121,18 @@ def with_bio(player: Player, player_data_payload: dict) -> Player:
     whose membership varies by Player (FotMob doesn't always have every
     field, e.g. Preferred foot for a fringe squad player) — matched by
     `title` rather than a fixed shape, and a field it doesn't have is simply
-    left at Player's own default (None) rather than overwritten.
+    left at Player's own default (None) rather than overwritten. FotMob's
+    `playerData` endpoint returns a bare `null` body for some player ids
+    (seen live for a Ligue 1 squad member) rather than an empty object, so
+    `player_data_payload` itself may be `None` — every field then falls back
+    to Player's own default, same as an empty `playerInformation` list.
 
     `player_data_payload` is the same `playerData` response already fetched
     for `find_entry_id` — no extra request needed.
     """
     info = {
         item.get("title"): item.get("value", {})
-        for item in player_data_payload.get("playerInformation", [])
+        for item in (player_data_payload or {}).get("playerInformation", [])
     }
     updates: dict = {"photo_url": photo_url(player.fotmob_id)}
     age = info.get("Age", {}).get("numberValue")
