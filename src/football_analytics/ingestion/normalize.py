@@ -56,6 +56,43 @@ def find_entry_id(player_data_payload: dict | None, *, season_name: str, tournam
     return None
 
 
+def find_known_league_entry(
+    player_data_payload: dict | None,
+    *,
+    season_name: str,
+    known_league_tournament_ids: set[int],
+) -> tuple[int, str] | None:
+    """Fallback for a Player with no Statistics entry in the League being
+    ingested (`find_entry_id` returned `None`) — e.g. a recently-transferred
+    Player whose Statistics for `season_name` still belong to their old
+    League (ADR-0004).
+
+    Among the Player's other competitions for `season_name`, finds the first
+    whose `tournamentId` is one of the Leagues already tracked in
+    `known_league_tournament_ids` — never a Cup, and never a League this
+    project doesn't track yet (that's left to a future spec, see
+    `.scratch/cross-league-transfers/spec.md`'s Out of Scope). Returns
+    `(tournament_id, entry_id)` for that League, or `None` if none of the
+    Player's competitions that Season is a known League.
+
+    Ties (more than one known League matched for the same `season_name` —
+    e.g. a genuine mid-season transfer within one Season label) are broken
+    by FotMob's own listing order, first match wins: a deterministic but
+    imperfect stand-in for a proper Season selector, which doesn't exist
+    yet (same Out of Scope note).
+    """
+    if not player_data_payload:
+        return None
+    for season in player_data_payload["statSeasons"] or []:
+        if season["seasonName"] != season_name:
+            continue
+        for tournament in season["tournaments"] or []:
+            tournament_id = tournament["tournamentId"]
+            if tournament_id in known_league_tournament_ids:
+                return tournament_id, tournament["entryId"]
+    return None
+
+
 def parse_top_stats(player_stats_payload: dict) -> list[Statistic]:
     return _parse_stat_items(player_stats_payload.get("topStatCard", {}).get("items", []))
 

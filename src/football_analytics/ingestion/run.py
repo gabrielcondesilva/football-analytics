@@ -28,6 +28,7 @@ from supabase import create_client
 from football_analytics.ingestion.fotmob_client import FotMobClient
 from football_analytics.ingestion.normalize import (
     find_entry_id,
+    find_known_league_entry,
     parse_all_stats,
     parse_squad,
     parse_teams,
@@ -53,11 +54,21 @@ def ingest_league(league_fotmob_id: int, league_name: str, season_name: str) -> 
     season_id = repo.get_or_create_season(league_id, season_name)
     snapshot_id = repo.create_snapshot(season_id, datetime.now(UTC))
 
+    # Leagues already tracked (this one included) are the only safe fallback
+    # targets for a Player whose Statistics for `season_name` belong to a
+    # different League than the one being ingested right now — e.g. a
+    # recently-transferred Player (ADR-0004). Fetched once per run, not
+    # per-Player: cheap, and "known" shouldn't drift mid-run.
+    known_leagues = {fotmob_id: (id_, name) for id_, fotmob_id, name in repo.list_leagues()}
+    known_league_tournament_ids = set(known_leagues)
+
     league_table = client.get_league_table(league_fotmob_id, season_name)
     teams = parse_teams(league_table)
     print(f"Found {len(teams)} teams for {league_name} {season_name}")
 
     saved_count = 0
+    fallback_count = 0
+    no_statistics_count = 0
     for team in teams:
         try:
             team_id = repo.save_team(team, league_id)
@@ -74,21 +85,44 @@ def ingest_league(league_fotmob_id: int, league_name: str, season_name: str) -> 
                 entry_id = find_entry_id(
                     player_data, season_name=season_name, tournament_id=league_fotmob_id
                 )
+                target_snapshot_id = snapshot_id
+
                 if entry_id is None:
-                    print(f"    skipping {roster_player.name}: no {season_name} entry")
-                    continue
+                    fallback = find_known_league_entry(
+                        player_data,
+                        season_name=season_name,
+                        known_league_tournament_ids=known_league_tournament_ids,
+                    )
+                    if fallback is not None:
+                        fallback_tournament_id, entry_id = fallback
+                        fallback_league_id, fallback_league_name = known_leagues[fallback_tournament_id]
+                        fallback_season_id = repo.get_or_create_season(fallback_league_id, season_name)
+                        target_snapshot_id = repo.get_or_create_latest_snapshot(fallback_season_id)
+                        fallback_count += 1
+                        print(
+                            f"    {roster_player.name}: no {league_name} entry, "
+                            f"using {fallback_league_name} Statistics instead"
+                        )
 
-                player_stats = client.get_player_stats(roster_player.fotmob_id, entry_id)
-                statistics = parse_all_stats(player_stats)
+                if entry_id is not None:
+                    player_stats = client.get_player_stats(roster_player.fotmob_id, entry_id)
+                    statistics = parse_all_stats(player_stats)
+                else:
+                    statistics = []
+                    no_statistics_count += 1
+                    print(f"    {roster_player.name}: saved with no Statistics ({season_name})")
+
                 player = with_bio(with_statistics(roster_player, statistics), player_data)
-
-                repo.save_player(snapshot_id, team_id, player)
+                repo.save_player(target_snapshot_id, team_id, player)
                 saved_count += 1
             except Exception as exc:  # noqa: BLE001 - one player's failure must not abort the run
                 print(f"    skipping {roster_player.name}: {exc!r}")
                 continue
 
-    print(f"Saved snapshot {snapshot_id} with {saved_count} players")
+    print(
+        f"Saved snapshot {snapshot_id} with {saved_count} players "
+        f"({fallback_count} with fallback Statistics, {no_statistics_count} with none)"
+    )
 
 
 def run() -> None:

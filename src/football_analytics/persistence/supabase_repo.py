@@ -8,7 +8,7 @@ upserts against the schema in schema.sql.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import cast
 
 from supabase import Client
@@ -23,6 +23,16 @@ class SupabaseRepo:
     def get_or_create_league(self, fotmob_id: int, name: str) -> int:
         return self._upsert_and_get_id("leagues", {"fotmob_id": fotmob_id, "name": name}, "fotmob_id")
 
+    def list_leagues(self) -> list[tuple[int, int, str]]:
+        """Every League currently tracked, as `(id, fotmob_id, name)` triples
+        — used by the ingestion orchestrator to know which Leagues are safe
+        fallback targets for a Player's cross-League Statistics (ADR-0004,
+        `find_known_league_entry`)."""
+        result = self._client.table("leagues").select("id, fotmob_id, name").execute()
+        return [
+            (int(row["id"]), int(row["fotmob_id"]), row["name"]) for row in cast(list[dict], result.data)
+        ]
+
     def get_or_create_season(self, league_id: int, name: str) -> int:
         return self._upsert_and_get_id(
             "seasons", {"league_id": league_id, "name": name}, "league_id,name"
@@ -34,6 +44,25 @@ class SupabaseRepo:
             {"season_id": season_id, "scraped_at": scraped_at.isoformat()},
             "season_id,scraped_at",
         )
+
+    def get_or_create_latest_snapshot(self, season_id: int) -> int:
+        """The most recent existing Snapshot for `season_id`, or a new one if
+        none exists yet — for attaching a Player's cross-League fallback
+        Statistics (ADR-0004) to the League/Season they actually came from,
+        without creating a redundant one-off Snapshot just for one Player.
+        The League actively being ingested this run always gets its own
+        fresh Snapshot via `create_snapshot` instead, never this method."""
+        result = (
+            self._client.table("snapshots")
+            .select("id")
+            .eq("season_id", season_id)
+            .order("scraped_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if result.data:
+            return int(cast(dict, result.data[0])["id"])
+        return self.create_snapshot(season_id, datetime.now(UTC))
 
     def save_team(self, team: Team, league_id: int) -> int:
         """`league_id` is the Team's current League (ADR-0004) — always the

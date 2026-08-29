@@ -4,6 +4,7 @@ from pathlib import Path
 from football_analytics.domain.models import Player, Position, Statistic, Team
 from football_analytics.ingestion.normalize import (
     find_entry_id,
+    find_known_league_entry,
     parse_all_stats,
     parse_category_stats,
     parse_squad,
@@ -124,6 +125,93 @@ def test_find_entry_id_returns_none_when_the_whole_payload_is_null():
     entry_id = find_entry_id(None, season_name="2025/2026", tournament_id=47)
 
     assert entry_id is None
+
+
+def test_find_known_league_entry_finds_the_tournament_matching_a_known_league():
+    """Bukayo Saka's 2025/2026 Season has six competitions (Premier League,
+    Community Shield, FA Cup, EFL Cup, Champions League, World Cup UEFA
+    qualification) — only tournamentId 47 (Premier League) is a League we
+    track."""
+    payload = load_fixture("player_data.json")
+
+    result = find_known_league_entry(
+        payload, season_name="2025/2026", known_league_tournament_ids={47, 87, 53}
+    )
+
+    assert result == (47, "1-0")
+
+
+def test_find_known_league_entry_returns_none_when_no_competition_is_a_known_league():
+    """Same Season, but the caller only tracks Leagues Saka didn't play in
+    that Season (e.g. a Player transferred from a League we've never
+    ingested) — every one of his competitions that Season is a Cup/
+    qualifier we don't track as a League, so there's no fallback to use."""
+    payload = load_fixture("player_data.json")
+
+    result = find_known_league_entry(
+        payload, season_name="2025/2026", known_league_tournament_ids={87, 53}
+    )
+
+    assert result is None
+
+
+def test_find_known_league_entry_breaks_ties_by_fotmob_listing_order():
+    """The rare case of two known-League entries in the same season_name
+    (e.g. a mid-season transfer within one Season label, not yet
+    disambiguated by a Season selector — see the spec's Out of Scope):
+    picks whichever comes first in FotMob's own listing, not the lowest
+    tournamentId or any other ordering."""
+    payload = load_fixture("player_data.json")
+    season_2025_26 = next(s for s in payload["statSeasons"] if s["seasonName"] == "2025/2026")
+    season_2025_26["tournaments"].insert(
+        0, {"name": "La Liga", "tournamentId": 87, "entryId": "9-9", "hasDeepStats": True}
+    )
+
+    result = find_known_league_entry(
+        payload, season_name="2025/2026", known_league_tournament_ids={47, 87}
+    )
+
+    assert result == (87, "9-9")
+
+
+def test_find_known_league_entry_returns_none_when_the_season_is_not_present():
+    payload = load_fixture("player_data.json")
+
+    result = find_known_league_entry(
+        payload, season_name="1999/2000", known_league_tournament_ids={47, 87, 53}
+    )
+
+    assert result is None
+
+
+def test_find_known_league_entry_returns_none_when_stat_seasons_is_null():
+    payload = load_fixture("player_data.json")
+    payload["statSeasons"] = None
+
+    result = find_known_league_entry(
+        payload, season_name="2025/2026", known_league_tournament_ids={47, 87, 53}
+    )
+
+    assert result is None
+
+
+def test_find_known_league_entry_returns_none_when_tournaments_is_null_for_the_matched_season():
+    payload = load_fixture("player_data.json")
+    payload["statSeasons"][1]["tournaments"] = None
+
+    result = find_known_league_entry(
+        payload, season_name="2025/2026", known_league_tournament_ids={47, 87, 53}
+    )
+
+    assert result is None
+
+
+def test_find_known_league_entry_returns_none_when_the_whole_payload_is_null():
+    result = find_known_league_entry(
+        None, season_name="2025/2026", known_league_tournament_ids={47, 87, 53}
+    )
+
+    assert result is None
 
 
 def test_parse_top_stats_extracts_the_raw_value_of_each_top_stat():
