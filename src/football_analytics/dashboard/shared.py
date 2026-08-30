@@ -228,3 +228,108 @@ def nationality_label(nationality: str | None) -> str | None:
     if nationality is None:
         return None
     return NATIONALITY_PT.get(nationality, nationality)
+
+
+# ISO 3166-1 alpha-2 code (lowercase, as flagcdn.com expects) per
+# `Player.nationality` raw value — same key set as `NATIONALITY_PT` above.
+# England/Scotland/Wales/Northern Ireland have no ISO country code of their
+# own (they're part of "GB"); flagcdn separately publishes their flags under
+# its own "gb-eng"/"gb-sct"/"gb-wls"/"gb-nir" subdivision codes, which is
+# what's used for those four here instead of a real ISO code.
+NATIONALITY_ISO2: dict[str, str] = {
+    "Albania": "al",
+    "Algeria": "dz",
+    "Angola": "ao",
+    "Argentina": "ar",
+    "Australia": "au",
+    "Austria": "at",
+    "Belgium": "be",
+    "Brazil": "br",
+    "Bulgaria": "bg",
+    "Burkina Faso": "bf",
+    "Cameroon": "cm",
+    "Canada": "ca",
+    "Cape Verde": "cv",
+    "Chile": "cl",
+    "Colombia": "co",
+    "Croatia": "hr",
+    "Czechia": "cz",
+    "DR Congo": "cd",
+    "Denmark": "dk",
+    "Dominican Republic": "do",
+    "Ecuador": "ec",
+    "Egypt": "eg",
+    "England": "gb-eng",
+    "Finland": "fi",
+    "France": "fr",
+    "Georgia": "ge",
+    "Germany": "de",
+    "Ghana": "gh",
+    "Greece": "gr",
+    "Guadeloupe": "gp",
+    "Guinea": "gn",
+    "Guinea-Bissau": "gw",
+    "Haiti": "ht",
+    "Hungary": "hu",
+    "Iceland": "is",
+    "Ireland": "ie",
+    "Israel": "il",
+    "Italy": "it",
+    "Ivory Coast": "ci",
+    "Jamaica": "jm",
+    "Japan": "jp",
+    "Malaysia": "my",
+    "Mauritania": "mr",
+    "Mexico": "mx",
+    "Morocco": "ma",
+    "Mozambique": "mz",
+    "Netherlands": "nl",
+    "New Zealand": "nz",
+    "Nigeria": "ng",
+    "North Macedonia": "mk",
+    "Northern Ireland": "gb-nir",
+    "Norway": "no",
+    "Paraguay": "py",
+    "Peru": "pe",
+    "Poland": "pl",
+    "Portugal": "pt",
+    "Romania": "ro",
+    "Russia": "ru",
+    "Scotland": "gb-sct",
+    "Senegal": "sn",
+    "Serbia": "rs",
+    "Slovakia": "sk",
+    "Slovenia": "si",
+    "South Africa": "za",
+    "South Korea": "kr",
+    "Spain": "es",
+    "Suriname": "sr",
+    "Sweden": "se",
+    "Switzerland": "ch",
+    "The Gambia": "gm",
+    "Togo": "tg",
+    "Tunisia": "tn",
+    "Turkiye": "tr",
+    "USA": "us",
+    "Ukraine": "ua",
+    "Uruguay": "uy",
+    "Uzbekistan": "uz",
+    "Venezuela": "ve",
+    "Wales": "gb-wls",
+    "Zimbabwe": "zw",
+}
+
+
+def nationality_flag_url(nationality: str | None) -> str | None:
+    """flagcdn.com's flag-image CDN URL for a Player's Nationality — same
+    deterministic-CDN-URL shape as `team_logo_url`, no extra ingestion
+    needed. `None` for a `nationality` that's `None` or not yet catalogued
+    in `NATIONALITY_ISO2` (a future League roster adds a country we haven't
+    mapped), so the caller can skip rendering a flag entirely rather than
+    link a broken image."""
+    if nationality is None:
+        return None
+    code = NATIONALITY_ISO2.get(nationality)
+    if code is None:
+        return None
+    return f"https://flagcdn.com/w40/{code}.png"
