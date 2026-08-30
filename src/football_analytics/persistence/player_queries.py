@@ -72,6 +72,36 @@ def _fetch_all_player_rows(client: Client, league_by_snapshot_id: dict[int, str 
         start += _PAGE_SIZE
 
 
+def get_touch_map_coordinates(client: Client, fotmob_id: int) -> list[tuple[float, float]]:
+    """Raw touch coordinates (Mapa de Toques, CONTEXT.md) for a single
+    Player, keyed by their `fotmob_id` — independent of `list_players()`,
+    fetched only for the one Player the Análise de Jogadores page has
+    selected at a time. Deliberately not part of the shared, cached Player
+    list every dashboard page reads: `player_touch_maps` holds a much
+    bigger blob per Player than anything else on `Player`, and only this
+    one page ever needs it (ADR-0005).
+
+    Empty list if the Player has no Mapa de Toques yet — not backfilled, or
+    no Statistics for it to be sourced from (same "no data" convention as
+    an absent Statistic) — or if no Player with this `fotmob_id` exists at
+    all.
+    """
+    result = (
+        client.table("players")
+        .select("player_touch_maps(coordinates)")
+        .eq("fotmob_id", fotmob_id)
+        .execute()
+    )
+    rows = cast(list[dict], result.data)
+    if not rows:
+        return []
+    touch_map = cast(dict | None, rows[0]["player_touch_maps"])
+    if touch_map is None:
+        return []
+    coordinates = cast(list[dict], touch_map["coordinates"])
+    return [(float(c["x"]), float(c["y"])) for c in coordinates]
+
+
 def list_players(client: Client) -> list[Player]:
     """Every Player currently in the database, with their Team, Position(s),
     Statistics, current League, and Statistics League.

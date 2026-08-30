@@ -19,7 +19,7 @@ from typing import Literal, cast
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-from plotly.graph_objects import Figure
+from plotly.graph_objects import Figure, Scatter
 
 from football_analytics.analysis.metrics import (
     MINUTES_PLAYED_KEY,
@@ -33,7 +33,8 @@ from football_analytics.analysis.metrics import (
     statistic_value,
     tercile_band,
 )
-from football_analytics.dashboard.data import get_players
+from football_analytics.analysis.touch_map import GRID_COLS, GRID_ROWS, touch_map_grid
+from football_analytics.dashboard.data import get_players, get_touch_map
 from football_analytics.dashboard.shared import (
     SEQUENTIAL_BLUE,
     bio_field,
@@ -138,6 +139,190 @@ def metric_radar_chart(matrix_df: pd.DataFrame) -> Figure:
         fill="toself",
         fillcolor="rgba(42, 120, 214, 0.25)",
         hovertemplate="%{theta}: %{r:.0f}%<extra></extra>",
+    )
+    return fig
+
+
+# Sequential single-hue ramp for the Mapa de Toques grid: cell shade is a
+# "how much" (magnitude) job, so it reads as one hue, light -> dark
+# (dataviz skill, choosing-a-form.md: "compare magnitude ... heatmap for a
+# grid | sequential (one hue)"). Fixed hex endpoints, not theme-derived —
+# same "mode-invariant" rationale as `TERCILE_CELL_STYLE` above: a Plotly
+# shape's fill doesn't inherit Streamlit's CSS custom properties the way the
+# HTML player card does, so a cell's shade needs to be pinned rather than
+# left to the page theme.
+TOUCH_MAP_LIGHT_RGB = (222, 236, 250)  # "#DEECFA" — faint tint, a near-empty cell
+TOUCH_MAP_DARK_RGB = (11, 61, 117)  # "#0B3D75" — deep anchor, this Player's busiest cell
+TOUCH_MAP_TEXT_DARK = "#0b2038"
+TOUCH_MAP_TEXT_LIGHT = "#ffffff"
+
+# Real pitch proportions (105m x 68m), used only to make the 6x4 grid read as
+# a landscape pitch with close-to-square cells rather than a squeezed/tall
+# one — not a claim that the underlying FotMob coordinates preserve this
+# aspect themselves (they don't; both axes are already 0-100).
+PITCH_ASPECT_RATIO = 68 / 105
+
+FIELD_LINE_COLOR = "rgba(120, 120, 120, 0.6)"
+CELL_BORDER_COLOR = "rgba(120, 120, 120, 0.3)"
+
+
+def touch_map_cell_style(value: float, max_value: float) -> tuple[str, str]:
+    """(fill, text_color) for one Mapa de Toques grid cell.
+
+    `intensity` is this cell's share of the Player's own busiest cell
+    (`max_value`), not a fixed 0-100 scale — normalized per-Player so a
+    Player with a spread-out distribution still shows visible contrast
+    between his own quieter and busier zones, rather than every cell
+    reading as pale because no single cell approaches 100%. Fill
+    interpolates linearly along the fixed light->dark ramp above; text
+    flips to white once the fill is dark enough to need it, mirroring
+    `style_percentile_cell`'s per-swatch contrast choice.
+    """
+    intensity = 0.0 if max_value <= 0 else min(max(value / max_value, 0.0), 1.0)
+    fill_rgb = (
+        round(lo + (hi - lo) * intensity) for lo, hi in zip(TOUCH_MAP_LIGHT_RGB, TOUCH_MAP_DARK_RGB, strict=True)
+    )
+    fill = "#{:02x}{:02x}{:02x}".format(*fill_rgb)
+    text_color = TOUCH_MAP_TEXT_LIGHT if intensity > 0.55 else TOUCH_MAP_TEXT_DARK
+    return fill, text_color
+
+
+def touch_map_hotspot_caption(grid: list[list[float]]) -> str:
+    """Plain-language takeaway naming the single busiest cell — labeling the
+    finding in words rather than leaving the reader to scan 24 numbers for
+    the maximum (dataviz storytelling checklist)."""
+    half_size = GRID_ROWS // 2
+    best_row, best_col, best_value = 0, 0, -1.0
+    for row_idx, row in enumerate(grid):
+        for col_idx, value in enumerate(row):
+            if value > best_value:
+                best_row, best_col, best_value = row_idx, col_idx, value
+    half = "defensivo" if best_row < half_size else "de ataque"
+    band = best_row % half_size + 1
+    return (
+        f"Zona com mais toques: terço {half} (faixa {band} de {half_size}), "
+        f"corredor {best_col + 1} de {GRID_COLS} — {best_value:.1f}% dos toques do jogador."
+    )
+
+
+def touch_map_field_chart(grid: list[list[float]]) -> Figure:
+    """Mapa de Toques: a `GRID_ROWS` x `GRID_COLS` grid of touch percentages,
+    drawn as a schematic horizontal pitch (own goal at x=0/left, attacking at
+    x=100/right) using Plotly shapes + text annotations — the same library
+    this page's Radar chart already uses, no heatmap trace, no new
+    dependency (ticket 02). Every cell always prints its exact percentage;
+    fill color is a secondary, sequential cue on top of that, not a
+    replacement for it — the discrete-grid-plus-number this feature was
+    explicitly asked for, as opposed to a smooth KDE-style gradient (Mapa de
+    Toques spec, user story 4 / Out of Scope).
+
+    Row varies across the pitch's *length* (x, own goal -> attacking goal);
+    column across its *width* (y) — laid out landscape via
+    `PITCH_ASPECT_RATIO` so the grid reads close to square-celled, the way a
+    real pitch divided 6 x 4 would, rather than tall and squeezed. A subtle
+    halfway line separates the defensive (rows 0-2) and attacking (rows 3-5)
+    thirds-and-a-half groupings the grid itself is built around, alongside a
+    center circle and the two penalty areas as lightweight pitch cues —
+    schematic, not to scale.
+    """
+    max_value = max((value for row in grid for value in row), default=0.0)
+    row_height = 100 / GRID_ROWS
+    col_height = 100 / GRID_COLS
+
+    fig = Figure()
+    hover_x: list[float] = []
+    hover_y: list[float] = []
+    hover_values: list[float] = []
+    for row_idx, row in enumerate(grid):
+        x0, x1 = row_idx * row_height, (row_idx + 1) * row_height
+        for col_idx, value in enumerate(row):
+            y0, y1 = col_idx * col_height, (col_idx + 1) * col_height
+            fill, text_color = touch_map_cell_style(value, max_value)
+            fig.add_shape(
+                type="rect",
+                x0=x0,
+                x1=x1,
+                y0=y0,
+                y1=y1,
+                fillcolor=fill,
+                line={"color": CELL_BORDER_COLOR, "width": 1},
+                layer="below",
+            )
+            fig.add_annotation(
+                x=(x0 + x1) / 2,
+                y=(y0 + y1) / 2,
+                text=f"{value:.1f}%",
+                showarrow=False,
+                font={"color": text_color, "size": 13},
+            )
+            hover_x.append((x0 + x1) / 2)
+            hover_y.append((y0 + y1) / 2)
+            hover_values.append(value)
+
+    # Invisible per-cell markers so hovering the grid still shows a tooltip
+    # — shapes alone don't emit hover events, and this project's default is
+    # to ship a hover layer rather than a static image (dataviz skill,
+    # interaction.md). Same numbers as the on-cell text, just also reachable
+    # as a tooltip.
+    fig.add_trace(
+        Scatter(
+            x=hover_x,
+            y=hover_y,
+            mode="markers",
+            marker={"size": 36, "opacity": 0},
+            customdata=hover_values,
+            hovertemplate="%{customdata:.1f}% dos toques<extra></extra>",
+            showlegend=False,
+        )
+    )
+
+    # Pitch cues: touchlines, halfway line (the row 2/row 3 boundary the
+    # grid's own rows are built around), center circle, and the two penalty
+    # areas — enough to read as a football pitch without claiming to be to
+    # scale. The touchline outline and both penalty boxes share the same
+    # unfilled-rect styling, so they're drawn from one coordinate list rather
+    # than three separate `add_shape` calls — a future line-style change only
+    # needs editing here.
+    half_x = (GRID_ROWS // 2) * row_height  # = 50, the defensive/attacking boundary
+    outline_rects = ((0, 100, 0, 100), (0, 16, 21, 79), (100 - 16, 100, 21, 79))
+    for rect_x0, rect_x1, rect_y0, rect_y1 in outline_rects:
+        fig.add_shape(
+            type="rect",
+            x0=rect_x0,
+            x1=rect_x1,
+            y0=rect_y0,
+            y1=rect_y1,
+            line={"color": FIELD_LINE_COLOR, "width": 2},
+            fillcolor="rgba(0,0,0,0)",
+        )
+    fig.add_shape(type="line", x0=half_x, x1=half_x, y0=0, y1=100, line={"color": FIELD_LINE_COLOR, "width": 2})
+
+    # `fig.update_yaxes(..., scaleanchor="x", scaleratio=PITCH_ASPECT_RATIO)`
+    # below makes 1 y-data-unit render shorter on screen than 1 x-data-unit
+    # (by that same ratio) — a circle shape's x/y radii therefore need the
+    # inverse scaling applied to its y-radius, or it renders as a flattened
+    # ellipse instead of a circle. `center_circle_radius_x` stays in the same
+    # data units as `half_x`; `center_circle_radius_y` is inflated by
+    # `1 / PITCH_ASPECT_RATIO` so both radii cover the same *visual* length.
+    center_circle_radius_x = 7
+    center_circle_radius_y = center_circle_radius_x / PITCH_ASPECT_RATIO
+    fig.add_shape(
+        type="circle",
+        x0=half_x - center_circle_radius_x,
+        x1=half_x + center_circle_radius_x,
+        y0=50 - center_circle_radius_y,
+        y1=50 + center_circle_radius_y,
+        line={"color": FIELD_LINE_COLOR, "width": 2},
+    )
+
+    fig.update_xaxes(range=[0, 100], visible=False, fixedrange=True)
+    fig.update_yaxes(range=[0, 100], visible=False, fixedrange=True, scaleanchor="x", scaleratio=PITCH_ASPECT_RATIO)
+    fig.update_layout(
+        height=420,
+        margin={"l": 10, "r": 10, "t": 10, "b": 10},
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        showlegend=False,
     )
     return fig
 
@@ -541,6 +726,29 @@ def render_metrics_content(
         )
 
 
+def render_touch_map_section(player: Player) -> None:
+    """Mapa de Toques: full-width section below the Perfil/Métricas columns,
+    gated only by Player selection — never by the sidebar's Métricas
+    multiselect, Tipo de Valor toggle, Visualização toggle, or Minutos
+    Mínimos. This is the Player's own raw touch distribution, not a Metric
+    compared against `comparison_population`, so none of those filters
+    apply (Mapa de Toques spec, tickets 01-02).
+    """
+    st.subheader("Mapa de Toques")
+    coordinates = get_touch_map(player.fotmob_id)
+    grid = touch_map_grid(coordinates)
+    if grid is None:
+        st.info(
+            "Ainda não há Mapa de Toques para este jogador — ele pode não ter sido "
+            "capturado ainda pela ingestão/backfill, ou não ter nenhuma Estatística "
+            "para basear o mapa."
+        )
+        return
+
+    st.plotly_chart(touch_map_field_chart(grid), width="stretch")
+    st.caption(touch_map_hotspot_caption(grid))
+
+
 def main() -> None:
     st.title("Análise de Jogadores")
 
@@ -600,6 +808,9 @@ def main() -> None:
             value_kind_label,
             view,
         )
+
+    st.divider()
+    render_touch_map_section(selected_player)
 
 
 main()
