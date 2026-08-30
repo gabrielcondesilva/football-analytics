@@ -10,6 +10,7 @@ from football_analytics.ingestion.normalize import (
     parse_squad,
     parse_teams,
     parse_top_stats,
+    parse_touch_coordinates,
     photo_url,
     with_bio,
     with_statistics,
@@ -344,6 +345,51 @@ def test_parse_all_stats_covers_the_goalkeeper_specific_categories():
     assert "saves" in keys
     assert "save_percentage" in keys
     assert "successful_passes" in keys  # from the distribution category
+
+
+def test_parse_touch_coordinates_extracts_every_x_y_pair_from_the_heatmap():
+    payload = load_fixture("player_stats.json")
+
+    coordinates = parse_touch_coordinates(payload)
+
+    assert coordinates == [(12.5, 30.0), (12.5, 30.0), (60.0, 80.0), (95.5, 10.2)]
+
+
+def test_parse_touch_coordinates_returns_empty_list_when_heatmap_key_is_missing():
+    assert parse_touch_coordinates({"topStatCard": {"items": []}}) == []
+
+
+def test_parse_touch_coordinates_returns_empty_list_when_heatmap_is_null():
+    assert parse_touch_coordinates({"heatmap": None}) == []
+
+
+def test_parse_touch_coordinates_returns_empty_list_when_coordinates_is_null():
+    assert parse_touch_coordinates({"heatmap": {"coordinates": None}}) == []
+
+
+def test_parse_touch_coordinates_returns_empty_list_when_coordinates_is_empty():
+    assert parse_touch_coordinates({"heatmap": {"coordinates": []}}) == []
+
+
+def test_parse_touch_coordinates_skips_a_malformed_point_and_keeps_the_valid_ones():
+    payload = {
+        "heatmap": {
+            "coordinates": [
+                {"x": 10.0, "y": 20.0},
+                {"x": None, "y": 20.0},
+                {"y": 20.0},
+                {"x": 30.0, "y": 40.0},
+            ]
+        }
+    }
+
+    assert parse_touch_coordinates(payload) == [(10.0, 20.0), (30.0, 40.0)]
+
+
+def test_parse_touch_coordinates_returns_empty_list_when_the_whole_payload_is_null():
+    """Same FotMob quirk already guarded elsewhere in this module (see
+    `find_entry_id`/`with_bio`): some endpoints return a bare `null` body."""
+    assert parse_touch_coordinates(None) == []
 
 
 def test_with_statistics_returns_a_player_carrying_the_given_statistics():

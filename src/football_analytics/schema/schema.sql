@@ -80,3 +80,14 @@ alter table players add column if not exists photo_url text;
 -- because it's backfilled after the fact for Teams ingested before this
 -- column existed.
 alter table teams add column if not exists league_id bigint references leagues (id);
+
+-- A Player's Mapa de Toques: raw touch coordinates from FotMob, one row per
+-- Player. Current-state, not Snapshot-scoped like `statistics` (ADR-0005) —
+-- every ingestion/backfill run replaces the row in full via upsert, never
+-- accumulates history. Kept out of `players` itself so the broad read used
+-- by every dashboard page (list_players) doesn't pay for a blob only the
+-- Análise de Jogadores page needs, one Player at a time.
+create table if not exists player_touch_maps (
+    player_id bigint primary key references players (id) on delete cascade,
+    coordinates jsonb not null
+);

@@ -55,3 +55,7 @@ _Avoid_: Version, scrape, coleta.
 
 **Minutes Floor**:
 O piso mínimo de minutos jogados que um Player precisa atingir para entrar em comparações e rankings, evitando distorção por amostra pequena. Ajustável pelo usuário.
+
+**Mapa de Toques**:
+Distribuição percentual dos toques na bola de um Player entre as células de uma grade fixa sobre o campo, derivada das coordenadas brutas de toque que o FotMob expõe junto das Statistics de uma Season. Mede onde o Player mais tocou a bola, não quanto tempo passou em cada zona — nenhum provedor público (FotMob incluso) expõe rastreamento posicional por tempo, então essa distinção é deliberada, não uma limitação a esconder. Sempre vem da mesma Season/League que produziu as Statistics exibidas do Player, para as duas descreverem o mesmo período de jogo — mas, ao contrário de Statistic, é um fato current-state do Player (como idade ou foto), não escopado por Snapshot: cada ingestão substitui o Mapa de Toques anterior em vez de acumular histórico. Só existe a versão mais recente.
+_Avoid_: Mapa de calor, heatmap, tempo em campo.

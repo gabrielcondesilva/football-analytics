@@ -116,6 +116,25 @@ class SupabaseRepo:
 
         return player_id
 
+    def save_touch_map(self, player_id: int, coordinates: list[tuple[float, float]]) -> None:
+        """Replace the Player's Mapa de Toques in full — current-state,
+        never accumulated per Snapshot like `statistics` (ADR-0005). An
+        empty `coordinates` deletes any previously stored row instead of
+        leaving it stale (e.g. this run's entry has Statistics but no
+        `heatmap`, or no entry at all) — same delete-then-insert handling
+        `save_player` above already uses for `player_positions`, and the
+        same "no data" convention as a Player with no Statistics."""
+        if not coordinates:
+            self._client.table("player_touch_maps").delete().eq("player_id", player_id).execute()
+            return
+        self._client.table("player_touch_maps").upsert(
+            {
+                "player_id": player_id,
+                "coordinates": [{"x": x, "y": y} for x, y in coordinates],
+            },
+            on_conflict="player_id",
+        ).execute()
+
     def _upsert_and_get_id(self, table: str, row: dict, on_conflict: str) -> int:
         result = self._client.table(table).upsert(row, on_conflict=on_conflict).execute()
         first_row = cast(dict, result.data[0])

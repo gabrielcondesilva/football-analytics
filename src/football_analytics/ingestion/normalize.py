@@ -139,6 +139,32 @@ def _parse_stat_items(items: list[dict]) -> list[Statistic]:
     return statistics
 
 
+def parse_touch_coordinates(player_stats_payload: dict | None) -> list[tuple[float, float]]:
+    """Raw touch coordinates from a `playerStats` payload's `heatmap` field,
+    for the Mapa de Toques (CONTEXT.md) — a Player's own positional
+    distribution, distinct from Statistic. Stored as-is and turned into a
+    percentage-per-grid-cell view later, at read time (ADR-0005), not here.
+
+    Null-safe like the rest of this module (`find_entry_id`, `with_bio`): a
+    missing payload, missing `heatmap`, or missing/null `coordinates` all
+    resolve to an empty list rather than raising — FotMob's own payloads are
+    inconsistent about which fields a given entry actually has (seen live: a
+    fresh transfer's entry can lack a `heatmap` key entirely). A malformed
+    individual point (missing `x`/`y`, or a non-numeric value) is skipped
+    rather than raising, same convention as `_parse_stat_items` below."""
+    if not player_stats_payload:
+        return []
+    heatmap = player_stats_payload.get("heatmap") or {}
+    coordinates = heatmap.get("coordinates") or []
+    result: list[tuple[float, float]] = []
+    for c in coordinates:
+        try:
+            result.append((float(c["x"]), float(c["y"])))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return result
+
+
 def with_statistics(player: Player, statistics: list[Statistic]) -> Player:
     return replace(player, statistics=tuple(statistics))
 

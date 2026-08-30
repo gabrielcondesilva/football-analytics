@@ -44,6 +44,7 @@ from football_analytics.ingestion.normalize import (
     parse_all_stats,
     parse_squad,
     parse_teams,
+    parse_touch_coordinates,
     with_bio,
     with_statistics,
 )
@@ -135,13 +136,16 @@ def ingest_league(
                 if entry_id is not None:
                     player_stats = client.get_player_stats(roster_player.fotmob_id, entry_id)
                     statistics = parse_all_stats(player_stats)
+                    touch_coordinates = parse_touch_coordinates(player_stats)
                 else:
                     statistics = []
+                    touch_coordinates = []
                     no_statistics_count += 1
                     print(f"    {roster_player.name}: saved with no Statistics ({season_name})")
 
                 player = with_bio(with_statistics(roster_player, statistics), player_data)
-                repo.save_player(target_snapshot_id, team_id, player)
+                player_id = repo.save_player(target_snapshot_id, team_id, player)
+                repo.save_touch_map(player_id, touch_coordinates)
                 saved_count += 1
             except Exception as exc:  # noqa: BLE001 - one player's failure must not abort the run
                 print(f"    skipping {roster_player.name}: {exc!r}")
